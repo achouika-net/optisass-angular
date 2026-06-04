@@ -1382,7 +1382,8 @@ export class AccountingService {
         montantTTC: ttc,
         montantHT: ht,
         montantTVA: tva,
-        taux: rate
+        taux: rate,
+        mode: tx.typeTransaction || 'AUTRE'
       });
     });
 
@@ -1450,7 +1451,8 @@ export class AccountingService {
         montantTTC: ttc,
         montantHT: ht,
         montantTVA: tva,
-        taux: rate
+        taux: rate,
+        mode: tx.typeTransaction || 'AUTRE'
       });
     });
 
@@ -1499,40 +1501,34 @@ export class AccountingService {
 
   async generateTvaCsv(dto: ExportSageDto): Promise<string> {
     const data = await this.getTvaBilan(dto);
-    let csv = '\ufeffBilan TVA Periodique (Regime des encaissements)\n';
-    csv += `Periode du : ${dto.startDate} au ${dto.endDate}\n\n`;
     
-    csv += 'SECTION;Taux;Base HT;Montant TVA;Total TTC\n';
+    // Header
+    let csv = `Regime;Regime des encaissements\n`;
+    csv += `Periode;du ${dto.startDate} au ${dto.endDate}\n\n`;
     
-    // Sales
-    data.sales.byRate.forEach((r) => {
-      csv += `TVA Collecteee (Ventes);${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
-    });
-    csv += `TOTAL TVA COLLECTEE;;;${data.sales.totalTVA.toFixed(2)};${data.sales.totalTTC.toFixed(2)}\n\n`;
+    // Summary
+    csv += `RESUME GLOBAL\n`;
+    csv += `TVA Collectee (Ventes);${data.sales.totalTVA.toFixed(2)}\n`;
+    csv += `TVA Deductible;${data.expenses.totalTVA.toFixed(2)}\n`;
+    csv += `SOLDE TVA (${data.isCredit ? 'Credit de TVA' : 'TVA due'});${Math.abs(data.soldeTva).toFixed(2)}\n\n`;
 
-    // Expenses
-    data.expenses.byRate.forEach((r) => {
-      csv += `TVA Deductible;${r.rate}%;${r.ht.toFixed(2)};${r.tva.toFixed(2)};${r.ttc.toFixed(2)}\n`;
-    });
-    csv += `TOTAL TVA DEDUCTIBLE;;;${data.expenses.totalTVA.toFixed(2)};${data.expenses.totalTTC.toFixed(2)}\n\n`;
-
-    // Solde
-    csv += `SOLDE TVA (TVA due / Crï¿½dit de TVA);;;${data.soldeTva.toFixed(2)};${data.isCredit ? 'Crï¿½dit de TVA' : 'TVA due'}\n\n`;
-
-    // Detailed transactions breakdown list
+    // Detailed transactions breakdown list (Sales)
     csv += 'DETAILS DES OPERATIONS (TVA COLLECTEE)\n';
-    csv += 'Date;Description/Rï¿½f;Taux;Base HT;Montant TVA;Total TTC\n';
+    csv += 'Date;Description;Mode;Taux;Base HT;Montant TVA;Total TTC\n';
     data.sales.details.forEach((d) => {
       const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
-      csv += `${dateStr};${d.description || ''};	ext{${d.taux}}%;	ext{${d.montantHT.toFixed(2)}};	ext{${d.montantTVA.toFixed(2)}};	ext{${d.montantTTC.toFixed(2)}}\n`;
+      const modeStr = (d.mode || 'AUTRE').replace(/_/g, ' ');
+      csv += `${dateStr};${d.description || ''};${modeStr};${d.taux}%;${d.montantHT.toFixed(2)};${d.montantTVA.toFixed(2)};${d.montantTTC.toFixed(2)}\n`;
     });
     csv += '\n';
 
+    // Detailed transactions breakdown list (Deductible)
     csv += 'DETAILS DES OPERATIONS (TVA DEDUCTIBLE)\n';
-    csv += 'Date;Description/Rï¿½f;Taux;Base HT;Montant TVA;Total TTC\n';
+    csv += 'Date;Description;Mode;Taux;Base HT;Montant TVA;Total TTC\n';
     data.expenses.details.forEach((d) => {
       const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
-      csv += `${dateStr};	ext{${d.description || ''}};	ext{${d.taux}}%;	ext{${d.montantHT.toFixed(2)}};	ext{${d.montantTVA.toFixed(2)}};	ext{${d.montantTTC.toFixed(2)}}\n`;
+      const modeStr = (d.mode || 'AUTRE').replace(/_/g, ' ');
+      csv += `${dateStr};${d.description || ''};${modeStr};${d.taux}%;${d.montantHT.toFixed(2)};${d.montantTVA.toFixed(2)};${d.montantTTC.toFixed(2)}\n`;
     });
 
     return csv;
@@ -1541,6 +1537,15 @@ export class AccountingService {
   async generateTvaPdf(dto: ExportSageDto): Promise<any> {
     const data = await this.getTvaBilan(dto);
     const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
+
+    // Simple ASCII clean-up helper to avoid rendering issues with PDFKit Helvetica default font
+    const ascii = (str) => {
+      if (!str) return '';
+      return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // remove accents
+        .replace(/[^\x20-\x7E]/g, '?');  // remove non-printable characters
+    };
 
     try {
       doc.fillColor('#1e293b').fontSize(20).text('Bilan TVA Periodique', { align: 'center' });
@@ -1551,7 +1556,7 @@ export class AccountingService {
       doc.rect(40, 100, 515, 70).fillAndStroke('#f8fafc', '#cbd5e1');
       doc.fillColor('#1e293b').fontSize(11).text('RESUME GLOBAL', 50, 110);
       
-      doc.fontSize(9).fillColor('#64748b').text('Total TVA Collecteeee (Ventes) :', 50, 130);
+      doc.fontSize(9).fillColor('#64748b').text('Total TVA Collectee (Ventes) :', 50, 130);
       doc.fillColor('#0f766e').text(`${data.sales.totalTVA.toFixed(2)} MAD`, 220, 130);
 
       doc.fillColor('#64748b').text('Total TVA Recuperable (Achats & Frais) :', 50, 145);
@@ -1569,24 +1574,23 @@ export class AccountingService {
       // Table Header
       doc.rect(40, yPos, 515, 20).fill('#e2e8f0');
       doc.fillColor('#334155').fontSize(9).text('Taux de TVA', 50, yPos + 6);
-      doc.text('Base HT', 180, yPos + 6);
-      doc.text('Montant TVA', 300, yPos + 6);
+      doc.text('Base HT', 200, yPos + 6);
+      doc.text('Montant TVA', 310, yPos + 6);
       doc.text('Total TTC', 430, yPos + 6);
       yPos += 20;
 
       data.sales.byRate.forEach((r) => {
         doc.fillColor('#475569').text(`${r.rate}%`, 50, yPos + 6);
-        doc.text(`${r.ht.toFixed(2)} MAD`, 180, yPos + 6);
-        doc.text(`${r.tva.toFixed(2)} MAD`, 300, yPos + 6);
+        doc.text(`${r.ht.toFixed(2)} MAD`, 200, yPos + 6);
+        doc.text(`${r.tva.toFixed(2)} MAD`, 310, yPos + 6);
         doc.text(`${r.ttc.toFixed(2)} MAD`, 430, yPos + 6);
         yPos += 20;
       });
 
-      doc.rect(40, yPos, 515, 1).fill('#cbd5e1');
-      yPos += 5;
+      doc.rect(40, yPos, 515, 1).fill('#cbd5e1'); yPos += 5;
       doc.fillColor('#1e293b').font('Helvetica-Bold').text('Total', 50, yPos);
-      doc.text(`${data.sales.totalHT.toFixed(2)} MAD`, 180, yPos);
-      doc.text(`${data.sales.totalTVA.toFixed(2)} MAD`, 300, yPos);
+      doc.text(`${data.sales.totalHT.toFixed(2)} MAD`, 200, yPos);
+      doc.text(`${data.sales.totalTVA.toFixed(2)} MAD`, 310, yPos);
       doc.text(`${data.sales.totalTTC.toFixed(2)} MAD`, 430, yPos);
       doc.font('Helvetica');
 
@@ -1597,122 +1601,89 @@ export class AccountingService {
 
       doc.rect(40, yPos, 515, 20).fill('#e2e8f0');
       doc.fillColor('#334155').fontSize(9).text('Taux de TVA', 50, yPos + 6);
-      doc.text('Base HT', 180, yPos + 6);
-      doc.text('Montant TVA', 300, yPos + 6);
+      doc.text('Base HT', 200, yPos + 6);
+      doc.text('Montant TVA', 310, yPos + 6);
       doc.text('Total TTC', 430, yPos + 6);
       yPos += 20;
 
       data.expenses.byRate.forEach((r) => {
         doc.fillColor('#475569').text(`${r.rate}%`, 50, yPos + 6);
-        doc.text(`${r.ht.toFixed(2)} MAD`, 180, yPos + 6);
-        doc.text(`${r.tva.toFixed(2)} MAD`, 300, yPos + 6);
+        doc.text(`${r.ht.toFixed(2)} MAD`, 200, yPos + 6);
+        doc.text(`${r.tva.toFixed(2)} MAD`, 310, yPos + 6);
         doc.text(`${r.ttc.toFixed(2)} MAD`, 430, yPos + 6);
         yPos += 20;
       });
 
-      doc.rect(40, yPos, 515, 1).fill('#cbd5e1');
-      yPos += 5;
+      doc.rect(40, yPos, 515, 1).fill('#cbd5e1'); yPos += 5;
       doc.fillColor('#1e293b').font('Helvetica-Bold').text('Total', 50, yPos);
-      doc.text(`${data.expenses.totalHT.toFixed(2)} MAD`, 180, yPos);
-      doc.text(`${data.expenses.totalTVA.toFixed(2)} MAD`, 300, yPos);
+      doc.text(`${data.expenses.totalHT.toFixed(2)} MAD`, 200, yPos);
+      doc.text(`${data.expenses.totalTVA.toFixed(2)} MAD`, 310, yPos);
       doc.text(`${data.expenses.totalTTC.toFixed(2)} MAD`, 430, yPos);
       doc.font('Helvetica');
 
+      const drawHdr = (y) => {
+        doc.rect(40, y, 515, 20).fill('#e2e8f0');
+        doc.fillColor('#334155').fontSize(8).font('Helvetica-Bold');
+        doc.text('Date',        50,  y + 6);
+        doc.text('Description', 110, y + 6);
+        doc.text('Mode',        270, y + 6);
+        doc.text('Taux',        325, y + 6);
+        doc.text('Base HT',     365, y + 6);
+        doc.text('TVA',         430, y + 6);
+        doc.text('Total TTC',   480, y + 6);
+        doc.font('Helvetica');
+        return y + 20;
+      };
+
+      const drawRow = (y, d) => {
+        const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
+        const desc = ascii(d.description || '').substring(0, 22);
+        const mode = ascii((d.mode || '').replace(/_/g, ' ')).substring(0, 14);
+        doc.fillColor('#475569').fontSize(7.5);
+        doc.text(dateStr, 50, y + 4);
+        doc.text(desc,    110, y + 4);
+        doc.text(mode,    270, y + 4);
+        doc.text(d.taux + '%',               325, y + 4);
+        doc.text(d.montantHT.toFixed(2),     365, y + 4);
+        doc.text(d.montantTVA.toFixed(2),    430, y + 4);
+        doc.text(d.montantTTC.toFixed(2),    480, y + 4);
+        return y + 16;
+      };
+
       // Page 2: Details of Collected VAT (Sales)
       doc.addPage();
-      doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text('Details des Operations - TVA Collecteee (Ventes)', 40, 40);
-      doc.moveDown(1);
-      
-      let y = 70;
-      doc.rect(40, y, 515, 20).fill('#e2e8f0');
-      doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
-      doc.text('Date', 50, y + 6);
-      doc.text('Description / Rï¿½f', 120, y + 6);
-      doc.text('Taux', 290, y + 6);
-      doc.text('Base HT', 340, y + 6);
-      doc.text('TVA', 420, y + 6);
-      doc.text('Total TTC', 490, y + 6);
+      doc.fillColor('#1e293b').fontSize(13).font('Helvetica-Bold').text('Details des Operations - TVA Collectee (Ventes)', 40, 40);
       doc.font('Helvetica');
-      y += 20;
-
+      let y = 65; 
+      y = drawHdr(y);
       data.sales.details.forEach((d) => {
-        if (y > 750) {
+        if (y > 760) {
           doc.addPage();
           y = 40;
-          doc.rect(40, y, 515, 20).fill('#e2e8f0');
-          doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
-          doc.text('Date', 50, y + 6);
-          doc.text('Description / Rï¿½f', 120, y + 6);
-          doc.text('Taux', 290, y + 6);
-          doc.text('Base HT', 340, y + 6);
-          doc.text('TVA', 420, y + 6);
-          doc.text('Total TTC', 490, y + 6);
-          doc.font('Helvetica');
-          y += 20;
+          y = drawHdr(y);
         }
-        
-        const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
-        doc.fillColor('#475569').fontSize(8);
-        doc.text(dateStr, 50, y + 5);
-        const desc = (d.description || '').substring(0, 30);
-        doc.text(desc, 120, y + 5);
-        doc.text(`${d.taux}%`, 290, y + 5);
-        doc.text(`${d.montantHT.toFixed(2)}`, 340, y + 5);
-        doc.text(`${d.montantTVA.toFixed(2)}`, 420, y + 5);
-        doc.text(`${d.montantTTC.toFixed(2)}`, 490, y + 5);
-        y += 18;
+        y = drawRow(y, d);
       });
 
       // Page 3: Details of Deductible VAT (Expenses)
       doc.addPage();
-      doc.fillColor('#1e293b').fontSize(14).font('Helvetica-Bold').text('Details des Operations - TVA Deductible (Achats & Frais)', 40, 40);
-      doc.moveDown(1);
-      
-      y = 70;
-      doc.rect(40, y, 515, 20).fill('#e2e8f0');
-      doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
-      doc.text('Date', 50, y + 6);
-      doc.text('Description / Rï¿½f', 120, y + 6);
-      doc.text('Taux', 290, y + 6);
-      doc.text('Base HT', 340, y + 6);
-      doc.text('TVA', 420, y + 6);
-      doc.text('Total TTC', 490, y + 6);
+      doc.fillColor('#1e293b').fontSize(13).font('Helvetica-Bold').text('Details des Operations - TVA Deductible (Achats & Frais)', 40, 40);
       doc.font('Helvetica');
-      y += 20;
-
+      y = 65; 
+      y = drawHdr(y);
       data.expenses.details.forEach((d) => {
-        if (y > 750) {
+        if (y > 760) {
           doc.addPage();
           y = 40;
-          doc.rect(40, y, 515, 20).fill('#e2e8f0');
-          doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold');
-          doc.text('Date', 50, y + 6);
-          doc.text('Description / Rï¿½f', 120, y + 6);
-          doc.text('Taux', 290, y + 6);
-          doc.text('Base HT', 340, y + 6);
-          doc.text('TVA', 420, y + 6);
-          doc.text('Total TTC', 490, y + 6);
-          doc.font('Helvetica');
-          y += 20;
+          y = drawHdr(y);
         }
-        
-        const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
-        doc.fillColor('#475569').fontSize(8);
-        doc.text(dateStr, 50, y + 5);
-        const desc = (d.description || '').substring(0, 30);
-        doc.text(desc, 120, y + 5);
-        doc.text(`${d.taux}%`, 290, y + 5);
-        doc.text(`${d.montantHT.toFixed(2)}`, 340, y + 5);
-        doc.text(`${d.montantTVA.toFixed(2)}`, 420, y + 5);
-        doc.text(`${d.montantTTC.toFixed(2)}`, 490, y + 5);
-        y += 18;
+        y = drawRow(y, d);
       });
 
       doc.end();
       return doc;
     } catch (e) {
-      throw new Error(`TVA PDF Error: ${e.message}`);
+      throw new Error('TVA PDF Error: ' + e.message);
     }
   }
-
 }
