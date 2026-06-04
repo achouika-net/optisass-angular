@@ -197,6 +197,58 @@ export class BanqueService {
     }
   }
 
+  private async linkEcheanceToTransaction(echeanceId: string, transactionId: string, dateTransaction: Date) {
+    const ech = await this.prisma.echeancePaiement.findUnique({
+      where: { id: echeanceId },
+      include: {
+        factureFournisseur: true,
+        bonLivraison: true
+      }
+    });
+    if (!ech) return;
+
+    await this.prisma.echeancePaiement.update({
+      where: { id: echeanceId },
+      data: { statut: 'ENCAISSE', dateEncaissement: dateTransaction }
+    });
+
+    const linkedDepense = await this.prisma.depense.findFirst({
+      where: { echeanceId }
+    });
+
+    if (linkedDepense) {
+      await this.prisma.depense.update({
+        where: { id: linkedDepense.id },
+        data: { statut: 'PAYE', transactionBancaireId: transactionId }
+      });
+    } else {
+      const tx = await this.prisma.transactionBancaire.findUnique({
+        where: { id: transactionId },
+        include: { releveBancaire: { include: { compteBancaire: true } } }
+      });
+      let centreId = ech.factureFournisseur?.centreId || ech.bonLivraison?.centreId;
+      if (!centreId) {
+        centreId = tx?.releveBancaire?.compteBancaire?.centreId || (await this.prisma.centre.findFirst())?.id || '';
+      }
+
+      await this.prisma.depense.create({
+        data: {
+          date: dateTransaction,
+          montant: ech.montant,
+          categorie: ech.factureFournisseurId ? 'Facture Fournisseur' : 'Bon de Livraison',
+          description: `${ech.type} N� ${ech.reference || ''}`.trim(),
+          modePaiement: ech.type,
+          statut: 'PAYE',
+          centreId: centreId,
+          echeanceId: ech.id,
+          transactionBancaireId: transactionId,
+          factureFournisseurId: ech.factureFournisseurId,
+          fournisseurId: ech.factureFournisseur?.fournisseurId || ech.bonLivraison?.fournisseurId || null
+        }
+      });
+    }
+  }
+
   async runAutoRapprochement(compteBancaireId?: string) {
     const whereClause: any = { statutRapprochement: 'NON_RAPPROCHE' };
     if (compteBancaireId) {
@@ -255,8 +307,10 @@ export class BanqueService {
       if (t.type === 'CREDIT') {
         const payments = await this.prisma.paiement.findMany({
           where: {
-            statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
-            transactionBancaireId: null
+            OR: [
+              { statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] } },
+              { statut: 'ENCAISSE', mode: { in: ['CARTE', 'CARTE_BANCAIRE', 'CB', 'TPE'] }, transactionBancaireId: null }
+            ]
           }
         });
 
@@ -304,20 +358,7 @@ export class BanqueService {
         );
 
         if (matchedEcheance) {
-          await this.prisma.echeancePaiement.update({
-            where: { id: matchedEcheance.id },
-            data: { statut: 'ENCAISSE', dateEncaissement: t.dateTransaction }
-          });
-
-          const linkedDepense = await this.prisma.depense.findFirst({
-            where: { echeanceId: matchedEcheance.id }
-          });
-          if (linkedDepense) {
-            await this.prisma.depense.update({
-              where: { id: linkedDepense.id },
-              data: { statut: 'PAYE', transactionBancaireId: t.id }
-            });
-          }
+          await this.linkEcheanceToTransaction(matchedEcheance.id, t.id, t.dateTransaction);
 
           await this.prisma.transactionBancaire.update({
             where: { id: t.id },
@@ -357,19 +398,7 @@ export class BanqueService {
 
         if (amtEchMatches.length === 1 && amtDepMatches.length === 0) {
           const matchedE = amtEchMatches[0];
-          await this.prisma.echeancePaiement.update({
-            where: { id: matchedE.id },
-            data: { statut: 'ENCAISSE', dateEncaissement: t.dateTransaction }
-          });
-          const linkedDepense = await this.prisma.depense.findFirst({
-            where: { echeanceId: matchedE.id }
-          });
-          if (linkedDepense) {
-            await this.prisma.depense.update({
-              where: { id: linkedDepense.id },
-              data: { statut: 'PAYE', transactionBancaireId: t.id }
-            });
-          }
+          await this.linkEcheanceToTransaction(matchedE.id, t.id, t.dateTransaction);
           await this.prisma.transactionBancaire.update({
             where: { id: t.id },
             data: { statutRapprochement: 'RAPPROCHE' }
@@ -398,6 +427,7 @@ export class BanqueService {
 
     return { matchedCount };
   }
+
   async deleteReleve(id: string) {
     const transactions = await this.prisma.transactionBancaire.findMany({ where: { releveBancaireId: id } });
     let soldeVariation = 0;
@@ -420,7 +450,7 @@ export class BanqueService {
         });
       }
 
-      // Rétablir les dépenses manuelles rapprochées
+      // Retablir les depenses manuelles rapprochees
       const matchedDepenses = await this.prisma.depense.findMany({
         where: {
           transactionBancaire: { releveBancaireId: id },
@@ -428,20 +458,30 @@ export class BanqueService {
         }
       });
       for (const d of matchedDepenses) {
-        await this.prisma.depense.update({
-          where: { id: d.id },
-          data: { statut: 'REMIS_EN_BANQUE', transactionBancaireId: null }
-        });
-          // Synchroniser l'echeance liee
-          if (d.echeanceId) {
-            await this.prisma.echeancePaiement.update({
-              where: { id: d.echeanceId },
-              data: { statut: 'REMIS_EN_BANQUE', dateEncaissement: null }
-            });
-          }
+        // If it's a generated echeance depense (it was created dynamically and has echeanceId),
+        // we delete it entirely and restore the echeance to REMIS_EN_BANQUE.
+        if (d.echeanceId) {
+          // Check if this echeance originally existed (it must)
+          await this.prisma.echeancePaiement.update({
+            where: { id: d.echeanceId },
+            data: { statut: 'REMIS_EN_BANQUE', dateEncaissement: null }
+          });
+          // Now check if the depense has a supplier invoice linked.
+          // Wait, if it didn't exist before matching, we can delete it.
+          // Let's delete it so it disappears from the TVA Bilan
+          await this.prisma.depense.delete({
+            where: { id: d.id }
+          });
+        } else {
+          // Normal manual expense: just unlink and reset status
+          await this.prisma.depense.update({
+            where: { id: d.id },
+            data: { statut: 'REMIS_EN_BANQUE', transactionBancaireId: null }
+          });
+        }
       }
       
-      // Supprimer uniquement les frais bancaires générés automatiquement
+      // Supprimer uniquement les frais bancaires generes automatiquement
       await this.prisma.depense.deleteMany({
         where: {
           transactionBancaire: { releveBancaireId: id },
@@ -449,15 +489,17 @@ export class BanqueService {
         }
       });
 
-      await this.prisma.transactionBancaire.deleteMany({ where: { releveBancaireId: id } });
-      return this.prisma.releveBancaire.delete({ where: { id } });
+      await this.prisma.transactionBancaire.updateMany({
+        where: { releveBancaireId: id },
+        data: { statutRapprochement: 'NON_RAPPROCHE' }
+      });
+
+      await this.prisma.releveBancaire.delete({ where: { id } });
     }
-    return null;
   }
 
   async getAllTransactions() {
     return this.prisma.transactionBancaire.findMany({
-      include: { releveBancaire: { include: { compteBancaire: true } } },
       orderBy: { dateTransaction: 'desc' }
     });
   }
@@ -472,13 +514,11 @@ export class BanqueService {
       where: {
         OR: [
           { statut: 'REMIS_EN_BANQUE' },
-          // Include CARTE payments that are ENCAISSE but not yet linked to a bank transaction
           { statut: 'ENCAISSE', mode: { in: ['CARTE', 'CARTE_BANCAIRE', 'CB', 'TPE'] }, transactionBancaireId: null }
         ]
       }
     });
 
-    // 1. Get raw expenses eligible for manual bank reconciliation (non-cash, not already linked)
     const directDepenses = await this.prisma.depense.findMany({
       where: {
         statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE', 'A_PAYER', 'VALIDEE'] },
@@ -490,13 +530,11 @@ export class BanqueService {
       include: { fournisseur: true }
     });
 
-    // 2. Get active echeances (installments/scheduled payments) linked to supplier invoices or BLs
-    // that represent a DEBIT (outgoing flow)
     const echeances = await this.prisma.echeancePaiement.findMany({
       where: {
         statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
         type: {
-          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'ESPÈCES', 'Caisse', 'CAISSE']
+          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Especes', 'ESPCES', 'Caisse', 'CAISSE']
         }
       },
       include: {
@@ -505,14 +543,13 @@ export class BanqueService {
       }
     });
 
-    // Combine both: map echeances as virtual depenses so the frontend can display and match them seamlessly
     const mappedEcheances = echeances.map(e => ({
-      id: e.id, // Using echeanceId as primary matched ID
+      id: e.id,
       isEcheance: true,
       date: e.dateEcheance,
       montant: e.montant,
       categorie: e.factureFournisseur ? 'Facture Fournisseur' : 'Bon de Livraison',
-      description: `Échéance ${e.reference || ''} (${e.type})`.trim(),
+      description: `Echeance ${e.reference || ''} (${e.type})`.trim(),
       modePaiement: e.type,
       statut: e.statut,
       reference: e.reference,
@@ -542,36 +579,19 @@ export class BanqueService {
         data: { statut: 'ENCAISSE', transactionBancaireId: data.transactionId }
       });
     } else if (data.typeMatched === 'DEPENSE' && data.matchedId) {
-      // Check if this matchedId is an echeance or a depense
       const isEcheance = await this.prisma.echeancePaiement.findUnique({
         where: { id: data.matchedId }
       });
 
       if (isEcheance) {
-        // Matched target is an echeance (Installment)
-        await this.prisma.echeancePaiement.update({
-          where: { id: data.matchedId },
-          data: { statut: 'ENCAISSE', dateEncaissement: new Date() }
-        });
-
-        // If there's a linked Depense, mark it as PAYE
-        const linkedDepense = await this.prisma.depense.findFirst({
-          where: { echeanceId: data.matchedId }
-        });
-        if (linkedDepense) {
-          await this.prisma.depense.update({
-            where: { id: linkedDepense.id },
-            data: { statut: 'PAYE', transactionBancaireId: data.transactionId }
-          });
-        }
+        const tx = await this.prisma.transactionBancaire.findUnique({ where: { id: data.transactionId } });
+        await this.linkEcheanceToTransaction(data.matchedId, data.transactionId, tx?.dateTransaction || new Date());
       } else {
-        // Matched target is a standard direct Depense
         await this.prisma.depense.update({
           where: { id: data.matchedId },
           data: { statut: 'PAYE', transactionBancaireId: data.transactionId }
         });
         
-        // Synchroniser l'echeance liee si elle existe
         const matchedDep = await this.prisma.depense.findUnique({ where: { id: data.matchedId } });
         if (matchedDep?.echeanceId) {
           await this.prisma.echeancePaiement.update({
@@ -584,4 +604,3 @@ export class BanqueService {
     return { success: true };
   }
 }
-
