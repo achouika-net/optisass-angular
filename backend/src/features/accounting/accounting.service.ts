@@ -1275,8 +1275,7 @@ export class AccountingService {
       centreFilter.centreId = centreId;
     }
 
-    // Fetch payments, expenses, bank fees, and non-reconciled transactions
-    const [payments, expenses, bankTransactions, nonReconciledTx] = await Promise.all([
+    const [payments, expenses, bankTransactions, nonReconciledTx, carteDirectTx] = await Promise.all([
       // Reconciled payments (statut: ENCAISSE and linked to a bank transaction)
       this.prisma.paiement.findMany({
         where: {
@@ -1318,6 +1317,19 @@ export class AccountingService {
           ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
         }
       })
+      ,
+      // CARTE batch CREDIT bank transactions reconciled without a linked paiement
+      // (CD AP / CD CMI terminal settlements auto-reconciled)
+      this.prisma.transactionBancaire.findMany({
+        where: {
+          dateTransaction: { gte: start, lte: end },
+          type: 'CREDIT',
+          typeTransaction: 'CARTE',
+          statutRapprochement: 'RAPPROCHE',
+          paiements: { none: {} },
+          ...(centreId && centreId !== 'ALL' && centreId !== '' ? { releveBancaire: { compteBancaire: { centreId } } } : {})
+        }
+      })
     ]);
 
     const getPaymentTvaRate = (p: any): number => {
@@ -1343,6 +1355,23 @@ export class AccountingService {
     payments.forEach(p => {
       const rate = getPaymentTvaRate(p);
       const ttc = p.montant || 0;
+      const ht = ttc / (1 + rate / 100);
+      const tva = ttc - ht;
+
+      if (!salesByRate[rate]) salesByRate[rate] = { ht: 0, tva: 0, ttc: 0 };
+      salesByRate[rate].ttc += ttc;
+      salesByRate[rate].ht += ht;
+      salesByRate[rate].tva += tva;
+
+      totalSalesTTC += ttc;
+      totalSalesHT += ht;
+      totalSalesTVA += tva;
+    });
+
+    // Process CARTE batch CREDIT bank transactions (without linked paiement) as sales
+    carteDirectTx.forEach(bt => {
+      const rate = 20; // Default to 20% TVA for credit card batches
+      const ttc = bt.montant || 0;
       const ht = ttc / (1 + rate / 100);
       const tva = ttc - ht;
 
@@ -1553,6 +1582,7 @@ export class AccountingService {
   }
 
 }
+
 
 
 

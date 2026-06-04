@@ -54,8 +54,8 @@ export class BanqueReleveComponent implements OnInit {
 
   // Filtres pour la section Rapprochement en Attente (independants du releve)
   rappFilterMonth = signal<string>('');
-  rappFilterStatutPaiement = signal<string>('REMIS_EN_BANQUE');   // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
-  rappFilterStatutDepense = signal<string>('REMIS_EN_BANQUE');    // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
+  rappFilterStatutPaiement = signal<string>('');   // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
+  rappFilterStatutDepense = signal<string>('');    // '' = tous | 'EN_ATTENTE' | 'REMIS_EN_BANQUE'
   
   filteredTransactions = computed(() => {
     const month = this.selectedMonth();
@@ -87,7 +87,7 @@ export class BanqueReleveComponent implements OnInit {
     if (statut) {
       items = items.filter((p: any) => {
         if (statut === 'REMIS_EN_BANQUE') {
-          return p.statut === 'REMIS_EN_BANQUE' || (p.statut === 'ENCAISSE' && ['CARTE', 'CARTE_BANCAIRE', 'CB', 'TPE', 'VIREMENT'].includes(p.mode) && !p.transactionBancaireId);
+          return p.statut === 'REMIS_EN_BANQUE';
         }
         return p.statut === statut;
       });
@@ -113,7 +113,7 @@ export class BanqueReleveComponent implements OnInit {
     if (statut) {
       items = items.filter((d: any) => {
         if (statut === 'REMIS_EN_BANQUE') {
-          return d.statut === 'REMIS_EN_BANQUE' || ['VALIDEE', 'A_PAYER', 'EN_ATTENTE'].includes(d.statut);
+          return d.statut === 'REMIS_EN_BANQUE' || d.statut === 'A_PAYER';
         }
         return d.statut === statut;
       });
@@ -383,6 +383,7 @@ export class BanqueReleveComponent implements OnInit {
     return map[statut] || '';
   }
 }
+
 
 
 

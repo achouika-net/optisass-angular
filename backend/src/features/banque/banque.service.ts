@@ -305,6 +305,15 @@ export class BanqueService {
       }
 
       if (t.type === 'CREDIT') {
+        // For CARTE transactions (CD AP / CD CMI = terminal card batch),
+        // try to match with system paiements first, then auto-mark as reconciled
+        const isBatchCard = t.typeTransaction === 'CARTE' && (
+          t.description.toLowerCase().includes('cd ap') ||
+          t.description.toLowerCase().includes('cd cmi') ||
+          t.description.toLowerCase().includes('paiment/cb') ||
+          t.description.toLowerCase().includes('paiement/cb')
+        );
+
         const payments = await this.prisma.paiement.findMany({
           where: {
             OR: [
@@ -314,7 +323,7 @@ export class BanqueService {
           }
         });
 
-        let matchedPayment = payments.find(p => 
+        let matchedPayment = payments.find(p =>
           Math.abs(p.montant - t.montant) < 0.05 && p.reference && isReferenceMatch(t.description, p.reference)
         );
 
@@ -335,6 +344,14 @@ export class BanqueService {
             data: { statutRapprochement: 'RAPPROCHE' }
           });
           matchedCount++;
+        } else if (isBatchCard) {
+          // Batch card terminal settlements have no individual system paiement match.
+          // Auto-mark as reconciled - these are legitimate bank CREDIT from card terminals (CMI/AP).
+          await this.prisma.transactionBancaire.update({
+            where: { id: t.id },
+            data: { statutRapprochement: 'RAPPROCHE' }
+          });
+          matchedCount++;
         }
       }
 
@@ -345,7 +362,7 @@ export class BanqueService {
 
         const depenses = await this.prisma.depense.findMany({
           where: {
-            statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE', 'VALIDEE'] },
+            statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE', 'VALIDEE', 'A_PAYER'] },
             transactionBancaireId: null,
             modePaiement: {
               notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Caisse', 'CAISSE']
@@ -353,13 +370,12 @@ export class BanqueService {
           }
         });
 
-        let matchedEcheance = echeances.find(e => 
+        let matchedEcheance = echeances.find(e =>
           Math.abs(e.montant - t.montant) < 0.05 && e.reference && isReferenceMatch(t.description, e.reference)
         );
 
         if (matchedEcheance) {
           await this.linkEcheanceToTransaction(matchedEcheance.id, t.id, t.dateTransaction);
-
           await this.prisma.transactionBancaire.update({
             where: { id: t.id },
             data: { statutRapprochement: 'RAPPROCHE' }
@@ -368,7 +384,7 @@ export class BanqueService {
           continue;
         }
 
-        let matchedDepense = depenses.find(d => 
+        let matchedDepense = depenses.find(d =>
           Math.abs(d.montant - t.montant) < 0.05 && d.reference && isReferenceMatch(t.description, d.reference)
         );
 
@@ -510,21 +526,23 @@ export class BanqueService {
       include: { releveBancaire: { include: { compteBancaire: true } } }
     });
 
+    // Paiements entrants en attente de rapprochement bancaire:
+    // - Remis en banque (cheque, virement): statut REMIS_EN_BANQUE
+    // - Carte bancaire ENCAISSE sans transaction (anomalie a verifier)
     const paiements = await this.prisma.paiement.findMany({
       where: {
-        OR: [
-          { statut: 'REMIS_EN_BANQUE' },
-          { statut: 'ENCAISSE', mode: { in: ['CARTE', 'CARTE_BANCAIRE', 'CB', 'TPE'] }, transactionBancaireId: null }
-        ]
+        statut: 'REMIS_EN_BANQUE'
       }
     });
 
+    // Depenses sortantes en attente de rapprochement bancaire
+    const cashModes = ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'especes', 'Prelevement', 'PRELEVEMENT', 'Caisse', 'CAISSE'];
     const directDepenses = await this.prisma.depense.findMany({
       where: {
-        statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE', 'A_PAYER', 'VALIDEE'] },
+        statut: { in: ['REMIS_EN_BANQUE', 'A_PAYER'] },
         transactionBancaireId: null,
         modePaiement: {
-          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Prelevement', 'PRELEVEMENT', 'Caisse', 'CAISSE']
+          notIn: cashModes
         }
       },
       include: { fournisseur: true }
@@ -534,7 +552,7 @@ export class BanqueService {
       where: {
         statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
         type: {
-          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Especes', 'ESPCES', 'Caisse', 'CAISSE']
+          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'especes', 'ESPCES', 'Caisse', 'CAISSE']
         }
       },
       include: {
@@ -549,7 +567,7 @@ export class BanqueService {
       date: e.dateEcheance,
       montant: e.montant,
       categorie: e.factureFournisseur ? 'Facture Fournisseur' : 'Bon de Livraison',
-      description: `Echeance ${e.reference || ''} (${e.type})`.trim(),
+        description: ('Echeance ' + (e.reference || '') + ' (' + e.type + ')').trim(),
       modePaiement: e.type,
       statut: e.statut,
       reference: e.reference,
@@ -566,6 +584,7 @@ export class BanqueService {
 
     return { transactions, paiements, depenses: combinedDepenses };
   }
+
 
   async validerRapprochement(data: { transactionId: string, typeMatched: string, matchedId?: string }) {
     await this.prisma.transactionBancaire.update({
