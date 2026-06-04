@@ -334,15 +334,22 @@ export class BanqueService {
     });
 
     const paiements = await this.prisma.paiement.findMany({
-      where: { statut: 'REMIS_EN_BANQUE' }
+      where: {
+        OR: [
+          { statut: 'REMIS_EN_BANQUE' },
+          // Include CARTE payments that are ENCAISSE but not yet linked to a bank transaction
+          { statut: 'ENCAISSE', mode: { in: ['CARTE', 'CARTE_BANCAIRE', 'CB', 'TPE'] }, transactionBancaireId: null }
+        ]
+      }
     });
 
-    // 1. Get raw expenses (standalone expenses without echeance or that are directly REMIS_EN_BANQUE)
+    // 1. Get raw expenses eligible for manual bank reconciliation (non-cash, not already linked)
     const directDepenses = await this.prisma.depense.findMany({
       where: {
-        statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
+        statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE', 'A_PAYER', 'VALIDEE'] },
+        transactionBancaireId: null,
         modePaiement: {
-          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'ESPÈCES', 'Caisse', 'CAISSE']
+          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Prelevement', 'PRELEVEMENT', 'Caisse', 'CAISSE']
         }
       },
       include: { fournisseur: true }
@@ -442,3 +449,4 @@ export class BanqueService {
     return { success: true };
   }
 }
+

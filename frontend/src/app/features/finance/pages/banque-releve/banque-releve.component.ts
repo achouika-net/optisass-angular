@@ -133,6 +133,7 @@ export class BanqueReleveComponent implements OnInit {
 
   transactionCols = ['date', 'description', 'type', 'montant', 'statut'];
   paiementCols = ['date', 'mode', 'montant', 'statut'];
+  depenseCols = ['date', 'categorie', 'montant', 'statut'];
 
   newCompte = { nom: '', banque: '', numeroCompte: '', type: 'STE' };
   showNewCompteForm = false;
@@ -242,17 +243,79 @@ export class BanqueReleveComponent implements OnInit {
     });
   }
 
-  validerRapprochement(transactionId: string, paiementId: string) {
+// --- RAPPROCHEMENT MANUEL ---
+  selectedTx = signal<any>(null);
+
+  selectTx(tx: any) {
+    if (this.selectedTx()?.id === tx.id) {
+      this.selectedTx.set(null); // deselect
+    } else {
+      this.selectedTx.set(tx);
+    }
+  }
+
+  rapprochemantAvecPaiement(paiement: any) {
+    const tx = this.selectedTx();
+    if (!tx) {
+      this.snack.open('Selectionnez d\'abord une transaction du releve !', 'X', { duration: 3000 });
+      return;
+    }
+    if (tx.type !== 'CREDIT') {
+      this.snack.open('Un paiement (encaissement) doit etre rapproche avec un CREDIT du releve.', 'X', { duration: 4000 });
+      return;
+    }
     this.http.post(`${this.api}/rapprochement/valider`, {
-      transactionId,
+      transactionId: tx.id,
       typeMatched: 'PAIEMENT',
-      matchedId: paiementId
+      matchedId: paiement.id
     }).subscribe({
       next: () => {
-        this.snack.open('Rapprochement validé - Paiement encaissé !', 'V', { duration: 3000 });
+        this.snack.open('Rapprochement valide - Paiement encaisse !', 'V', { duration: 3000 });
+        this.selectedTx.set(null);
         this.loadRapprochement();
         this.loadAllTransactions();
-      }
+      },
+      error: () => this.snack.open('Erreur lors du rapprochement', 'X', { duration: 3000 })
+    });
+  }
+
+  rapprochemantAvecDepense(depense: any) {
+    const tx = this.selectedTx();
+    if (!tx) {
+      this.snack.open('Selectionnez d\'abord une transaction du releve !', 'X', { duration: 3000 });
+      return;
+    }
+    if (tx.type !== 'DEBIT') {
+      this.snack.open('Une depense (decaissement) doit etre rapprochee avec un DEBIT du releve.', 'X', { duration: 4000 });
+      return;
+    }
+    this.http.post(`${this.api}/rapprochement/valider`, {
+      transactionId: tx.id,
+      typeMatched: 'DEPENSE',
+      matchedId: depense.id
+    }).subscribe({
+      next: () => {
+        this.snack.open('Rapprochement valide - Depense marquee payee !', 'V', { duration: 3000 });
+        this.selectedTx.set(null);
+        this.loadRapprochement();
+        this.loadAllTransactions();
+      },
+      error: () => this.snack.open('Erreur lors du rapprochement', 'X', { duration: 3000 })
+    });
+  }
+
+  marquerSansContrepartie(tx: any) {
+    if (!confirm('Marquer cette transaction comme rapprochee sans contrepartie systeme ?')) return;
+    this.http.post(`${this.api}/rapprochement/valider`, {
+      transactionId: tx.id,
+      typeMatched: 'SANS_CONTREPARTIE'
+    }).subscribe({
+      next: () => {
+        this.snack.open('Transaction marquee rapprochee (sans contrepartie)', 'V', { duration: 3000 });
+        this.loadRapprochement();
+        this.loadAllTransactions();
+      },
+      error: () => this.snack.open('Erreur', 'X', { duration: 3000 })
     });
   }
 
@@ -295,3 +358,5 @@ export class BanqueReleveComponent implements OnInit {
     return map[statut] || '';
   }
 }
+
+

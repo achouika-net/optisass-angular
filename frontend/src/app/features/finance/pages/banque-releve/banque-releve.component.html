@@ -301,18 +301,48 @@
     </div>
     <!-- ===== FIN FILTRES ===== -->
 
+    <!-- RAPPROCHEMENT MANUEL: etape 1 = selectionner tx, etape 2 = cliquer Rapprocher -->
+    @if (selectedTx()) {
+      <div style="margin-bottom:16px; padding:12px 18px; background:#fffbeb; border:2px solid #f59e0b; border-radius:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <mat-icon style="color:#f59e0b;">link</mat-icon>
+        <div style="flex:1">
+          <strong style="color:#92400e;">Transaction selectionnee :</strong>
+          <span style="margin-left:8px; color:#78350f;">
+            {{ selectedTx().dateTransaction | date:'dd/MM/yy' }} &mdash;
+            {{ selectedTx().description }}
+            <span [style.color]="selectedTx().type === 'CREDIT' ? '#16a34a' : '#dc2626'" style="font-weight:700; margin-left:6px;">
+              {{ selectedTx().type === 'CREDIT' ? '+' : '-' }}{{ selectedTx().montant | number:'1.2-2' }} MAD
+            </span>
+          </span>
+        </div>
+        <span style="font-size:12px; color:#b45309; background:#fef3c7; padding:4px 10px; border-radius:20px;">
+          @if (selectedTx().type === 'CREDIT') { Selectionnez un PAIEMENT a droite pour rapprocher }
+          @else { Selectionnez une DEPENSE a droite pour rapprocher }
+        </span>
+        <button mat-icon-button (click)="selectedTx.set(null)" matTooltip="Annuler la selection">
+          <mat-icon style="color:#9ca3af;">close</mat-icon>
+        </button>
+      </div>
+    }
+    @if (!selectedTx()) {
+      <div style="margin-bottom:16px; padding:10px 16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; font-size:13px; color:#0369a1; display:flex; align-items:center; gap:8px;">
+        <mat-icon style="font-size:18px;">info</mat-icon>
+        <span>Mode Rapprochement Manuel : <strong>Cliquez sur une ligne du releve</strong> pour la selectionner, puis cliquez <strong>Rapprocher</strong> sur le paiement ou la depense correspondante.</span>
+      </div>
+    }
+
     <div class="rapprochement-grid">
 
-      <!-- Transactions non rapprochées -->
+      <!-- Transactions non rapprochees -->
       <mat-card class="rapp-card">
         <mat-card-header>
           <mat-icon mat-card-avatar>account_balance</mat-icon>
-          <mat-card-title>Lignes du relevé non rapprochées</mat-card-title>
+          <mat-card-title>Lignes du releve non rapprochees</mat-card-title>
           <mat-card-subtitle>{{ transactions().length }} transaction(s)</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           @if (transactions().length === 0) {
-            <div class="empty-state"><mat-icon>check_circle</mat-icon> Tout est rapproché !</div>
+            <div class="empty-state"><mat-icon>check_circle</mat-icon> Tout est rapproche !</div>
           } @else {
             <table mat-table [dataSource]="transactions()" class="rapp-table">
               <ng-container matColumnDef="date">
@@ -336,28 +366,43 @@
                 </td>
               </ng-container>
               <ng-container matColumnDef="statut">
-                <th mat-header-cell *matHeaderCellDef>Statut</th>
-                <td mat-cell *matCellDef="let t">
-                  <span class="statut-badge" [class.non-rapproche]="t.statutRapprochement==='NON_RAPPROCHE'">
-                    {{ t.statutRapprochement }}
-                  </span>
+                <th mat-header-cell *matHeaderCellDef>Action</th>
+                <td mat-cell *matCellDef="let t" style="white-space:nowrap;">
+                  <button mat-stroked-button
+                    [color]="selectedTx()?.id === t.id ? 'warn' : 'primary'"
+                    (click)="selectTx(t)"
+                    style="font-size:11px; height:30px; line-height:1; margin-right:4px;"
+                    [matTooltip]="selectedTx()?.id === t.id ? 'Deselectionner' : 'Selectionner pour rapprocher'">
+                    <mat-icon style="font-size:14px; margin-right:2px;">{{ selectedTx()?.id === t.id ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
+                    {{ selectedTx()?.id === t.id ? 'Selectionnee' : 'Selectionner' }}
+                  </button>
+                  <button mat-icon-button color="primary"
+                    (click)="marquerSansContrepartie(t)"
+                    matTooltip="Rapprocher sans contrepartie systeme (ex: frais divers)"
+                    style="width:28px; height:28px;">
+                    <mat-icon style="font-size:16px;">check</mat-icon>
+                  </button>
                 </td>
               </ng-container>
               <tr mat-header-row *matHeaderRowDef="transactionCols"></tr>
-              <tr mat-row *matRowDef="let row; columns: transactionCols;"></tr>
+              <tr mat-row *matRowDef="let row; columns: transactionCols;"
+                [style.background]="selectedTx()?.id === row.id ? '#fef3c7' : ''"
+                [style.outline]="selectedTx()?.id === row.id ? '2px solid #f59e0b' : ''"
+                style="cursor:pointer;"
+                (click)="selectTx(row)"></tr>
             </table>
           }
         </mat-card-content>
       </mat-card>
 
-      <!-- Flux systme en attente (Paiements et DǸpenses) -->
+      <!-- Flux systeme en attente (Paiements et Depenses) -->
       <div style="display: flex; flex-direction: column; gap: 20px;">
-        
-        <!-- Paiements systme en attente (Encaissements) -->
+
+        <!-- Paiements systeme en attente (Encaissements) -->
         <mat-card class="rapp-card">
           <mat-card-header>
             <mat-icon mat-card-avatar>payments</mat-icon>
-            <mat-card-title>Paiements Systme (Remise en banque)</mat-card-title>
+            <mat-card-title>Paiements Systeme (Remise en banque)</mat-card-title>
             <mat-card-subtitle>{{ filteredPaiements().length }} paiement(s) en attente</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
@@ -370,17 +415,27 @@
                   <td mat-cell *matCellDef="let p">{{ (p.dateVersement || p.date) | date:'dd/MM/yy' }}</td>
                 </ng-container>
                 <ng-container matColumnDef="mode">
-                  <th mat-header-cell *matHeaderCellDef>Mode</th>
-                  <td mat-cell *matCellDef="let p">{{ p.mode }}</td>
+                  <th mat-header-cell *matHeaderCellDef>Mode / Reference</th>
+                  <td mat-cell *matCellDef="let p">
+                    <span style="font-weight:600;">{{ p.mode }}</span>
+                    @if (p.reference) { <br><small style="color:#6b7280;">Ref: {{ p.reference }}</small> }
+                    @if (p.tiersNom) { <br><small style="color:#6b7280;">{{ p.tiersNom }}</small> }
+                  </td>
                 </ng-container>
                 <ng-container matColumnDef="montant">
                   <th mat-header-cell *matHeaderCellDef>Montant</th>
                   <td mat-cell *matCellDef="let p" class="credit">+{{ p.montant | number:'1.2-2' }}</td>
                 </ng-container>
                 <ng-container matColumnDef="statut">
-                  <th mat-header-cell *matHeaderCellDef>Statut</th>
+                  <th mat-header-cell *matHeaderCellDef>Action</th>
                   <td mat-cell *matCellDef="let p">
-                    <span class="statut-badge non-rapproche">{{ p.statut }}</span>
+                    <button mat-flat-button color="accent"
+                      [disabled]="!selectedTx() || selectedTx().type !== 'CREDIT'"
+                      (click)="rapprochemantAvecPaiement(p)"
+                      style="font-size:11px; height:30px; line-height:1;"
+                      matTooltip="Rapprocher ce paiement avec la transaction selectionnee">
+                      <mat-icon style="font-size:14px;">link</mat-icon> Rapprocher
+                    </button>
                   </td>
                 </ng-container>
                 <tr mat-header-row *matHeaderRowDef="paiementCols"></tr>
@@ -390,38 +445,47 @@
           </mat-card-content>
         </mat-card>
 
-        <!-- DǸpenses systme en attente (DǸcaissements) -->
+        <!-- Depenses systeme en attente (Decaissements) -->
         <mat-card class="rapp-card">
           <mat-card-header>
             <mat-icon mat-card-avatar>shopping_cart</mat-icon>
-            <mat-card-title>DǸpenses Systme (Remise en banque)</mat-card-title>
-            <mat-card-subtitle>{{ filteredDepenses().length }} dǸpense(s) en attente</mat-card-subtitle>
+            <mat-card-title>Depenses Systeme (Remise en banque)</mat-card-title>
+            <mat-card-subtitle>{{ filteredDepenses().length }} depense(s) en attente</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             @if (filteredDepenses().length === 0) {
-              <div class="empty-state"><mat-icon>check_circle</mat-icon> Aucune dǸpense en attente</div>
+              <div class="empty-state"><mat-icon>check_circle</mat-icon> Aucune depense en attente</div>
             } @else {
               <table mat-table [dataSource]="filteredDepenses()" class="rapp-table">
                 <ng-container matColumnDef="date">
                   <th mat-header-cell *matHeaderCellDef>Date</th>
                   <td mat-cell *matCellDef="let d">{{ d.date | date:'dd/MM/yy' }}</td>
                 </ng-container>
-                <ng-container matColumnDef="mode">
-                  <th mat-header-cell *matHeaderCellDef>Mode</th>
-                  <td mat-cell *matCellDef="let d">{{ d.modePaiement || d.mode }}</td>
+                <ng-container matColumnDef="categorie">
+                  <th mat-header-cell *matHeaderCellDef>Categorie / Mode</th>
+                  <td mat-cell *matCellDef="let d" class="desc-cell">
+                    <span style="font-weight:600;">{{ d.categorie || d.description || '-' }}</span>
+                    <br><small style="color:#6b7280;">{{ d.modePaiement || d.mode }}</small>
+                  </td>
                 </ng-container>
                 <ng-container matColumnDef="montant">
                   <th mat-header-cell *matHeaderCellDef>Montant</th>
                   <td mat-cell *matCellDef="let d" class="debit">-{{ d.montant | number:'1.2-2' }}</td>
                 </ng-container>
                 <ng-container matColumnDef="statut">
-                  <th mat-header-cell *matHeaderCellDef>Statut</th>
+                  <th mat-header-cell *matHeaderCellDef>Action</th>
                   <td mat-cell *matCellDef="let d">
-                    <span class="statut-badge non-rapproche">{{ d.statut }}</span>
+                    <button mat-flat-button color="warn"
+                      [disabled]="!selectedTx() || selectedTx().type !== 'DEBIT'"
+                      (click)="rapprochemantAvecDepense(d)"
+                      style="font-size:11px; height:30px; line-height:1;"
+                      matTooltip="Rapprocher cette depense avec la transaction selectionnee">
+                      <mat-icon style="font-size:14px;">link</mat-icon> Rapprocher
+                    </button>
                   </td>
                 </ng-container>
-                <tr mat-header-row *matHeaderRowDef="paiementCols"></tr>
-                <tr mat-row *matRowDef="let row; columns: paiementCols;"></tr>
+                <tr mat-header-row *matHeaderRowDef="depenseCols"></tr>
+                <tr mat-row *matRowDef="let row; columns: depenseCols;"></tr>
               </table>
             }
           </mat-card-content>
