@@ -82,8 +82,14 @@ export class BanqueController {
     return this.banqueService.getTransactionsNonRapprochees();
   }
 
+    @Post('rapprochement/auto')
+  runAutoRapprochement(@Body() body: { compteId?: string }) {
+    return this.banqueService.runAutoRapprochement(body.compteId);
+  }
+
   @Post('rapprochement/valider')
   validerRapprochement(@Body() data: { transactionId: string, typeMatched: string, matchedId?: string }) {
     return this.banqueService.validerRapprochement(data);
   }
 }
+

@@ -214,6 +214,22 @@ export class BanqueReleveComponent implements OnInit {
     });
   }
 
+  triggerAutoRapprochement() {
+    this.loading.set(true);
+    this.http.post<any>(`${this.api}/rapprochement/auto`, {}).subscribe({
+      next: (res) => {
+        this.loading.set(false);
+        this.snack.open(`${res.matchedCount} transactions rapprochées automatiquement !`, 'OK', { duration: 5000 });
+        this.loadRapprochement();
+        this.loadAllTransactions();
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.snack.open('Erreur lors du rapprochement automatique', 'X', { duration: 3000 });
+      }
+    });
+  }
+
   onFileSelected(event: any, compteId?: string) {
     const file: File = event.target.files[0];
     if (!file) return;
@@ -358,5 +374,6 @@ export class BanqueReleveComponent implements OnInit {
     return map[statut] || '';
   }
 }
+
 
 

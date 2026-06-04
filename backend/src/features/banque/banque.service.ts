@@ -189,80 +189,215 @@ export class BanqueService {
   }
 
   async autoRapprochement(releveId: string) {
-    const transactions = await this.prisma.transactionBancaire.findMany({
-      where: { releveBancaireId: releveId, statutRapprochement: 'NON_RAPPROCHE' }
+    const releve = await this.prisma.releveBancaire.findUnique({
+      where: { id: releveId }
     });
-    
+    if (releve) {
+      await this.runAutoRapprochement(releve.compteBancaireId);
+    }
+  }
+
+  async runAutoRapprochement(compteBancaireId?: string) {
+    const whereClause: any = { statutRapprochement: 'NON_RAPPROCHE' };
+    if (compteBancaireId) {
+      whereClause.releveBancaire = { compteBancaireId };
+    }
+    const transactions = await this.prisma.transactionBancaire.findMany({
+      where: whereClause,
+      include: { releveBancaire: true }
+    });
+
+    let matchedCount = 0;
+
+    const isReferenceMatch = (desc: string, ref: string): boolean => {
+      if (!ref || !desc) return false;
+      const cleanDesc = desc.replace(/[\s\-_]/g, '').toLowerCase();
+      const cleanRef = ref.replace(/[\s\-_]/g, '').toLowerCase();
+      if (cleanDesc.includes(cleanRef) || cleanRef.includes(cleanDesc)) return true;
+      const refNoZeros = cleanRef.replace(/^0+/, '');
+      if (refNoZeros.length >= 4 && cleanDesc.includes(refNoZeros)) return true;
+      return false;
+    };
+
     for (const t of transactions) {
       if (t.typeTransaction === 'FRAIS_BANCAIRES' && t.type === 'DEBIT') {
-        const releve = await this.prisma.releveBancaire.findUnique({ where: { id: t.releveBancaireId }, include: { compteBancaire: true } });
-        if (!releve) continue;
-        await this.prisma.depense.create({
-          data: {
-            date: t.dateTransaction,
-            montant: t.montant,
-            categorie: 'Frais Bancaires',
-            description: t.description,
-            modePaiement: 'Prelevement',
-            statut: 'PAYE',
-            centreId: releve.compteBancaire.centreId || (await this.prisma.centre.findFirst())?.id || '',
-            transactionBancaireId: t.id
-          }
+        const releve = await this.prisma.releveBancaire.findUnique({
+          where: { id: t.releveBancaireId },
+          include: { compteBancaire: true }
         });
+        if (!releve) continue;
+        
+        const existingFee = await this.prisma.depense.findFirst({
+          where: { transactionBancaireId: t.id }
+        });
+        if (!existingFee) {
+          await this.prisma.depense.create({
+            data: {
+              date: t.dateTransaction,
+              montant: t.montant,
+              categorie: 'Frais Bancaires',
+              description: t.description,
+              modePaiement: 'Prelevement',
+              statut: 'PAYE',
+              centreId: releve.compteBancaire.centreId || (await this.prisma.centre.findFirst())?.id || '',
+              transactionBancaireId: t.id
+            }
+          });
+        }
         await this.prisma.transactionBancaire.update({
           where: { id: t.id },
           data: { statutRapprochement: 'RAPPROCHE' }
         });
-      } else if (t.type === 'CREDIT') {
+        matchedCount++;
+        continue;
+      }
+
+      if (t.type === 'CREDIT') {
         const payments = await this.prisma.paiement.findMany({
           where: {
-            statut: 'REMIS_EN_BANQUE',
-            montant: t.montant,
+            statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
             transactionBancaireId: null
           }
         });
-        if (payments.length === 1) {
+
+        let matchedPayment = payments.find(p => 
+          Math.abs(p.montant - t.montant) < 0.05 && p.reference && isReferenceMatch(t.description, p.reference)
+        );
+
+        if (!matchedPayment) {
+          const amtMatches = payments.filter(p => Math.abs(p.montant - t.montant) < 0.05);
+          if (amtMatches.length === 1) {
+            matchedPayment = amtMatches[0];
+          }
+        }
+
+        if (matchedPayment) {
           await this.prisma.paiement.update({
-            where: { id: payments[0].id },
+            where: { id: matchedPayment.id },
             data: { statut: 'ENCAISSE', transactionBancaireId: t.id }
           });
           await this.prisma.transactionBancaire.update({
             where: { id: t.id },
             data: { statutRapprochement: 'RAPPROCHE' }
           });
+          matchedCount++;
         }
-      } else if (t.type === 'DEBIT') {
+      }
+
+      if (t.type === 'DEBIT') {
+        const echeances = await this.prisma.echeancePaiement.findMany({
+          where: { statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE', 'VALIDEE'] } }
+        });
+
         const depenses = await this.prisma.depense.findMany({
           where: {
-            statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
-            montant: t.montant,
+            statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE', 'VALIDEE'] },
             transactionBancaireId: null,
             modePaiement: {
               notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Caisse', 'CAISSE']
             }
           }
         });
-        if (depenses.length === 1) {
+
+        let matchedEcheance = echeances.find(e => 
+          Math.abs(e.montant - t.montant) < 0.05 && e.reference && isReferenceMatch(t.description, e.reference)
+        );
+
+        if (matchedEcheance) {
+          await this.prisma.echeancePaiement.update({
+            where: { id: matchedEcheance.id },
+            data: { statut: 'ENCAISSE', dateEncaissement: t.dateTransaction }
+          });
+
+          const linkedDepense = await this.prisma.depense.findFirst({
+            where: { echeanceId: matchedEcheance.id }
+          });
+          if (linkedDepense) {
+            await this.prisma.depense.update({
+              where: { id: linkedDepense.id },
+              data: { statut: 'PAYE', transactionBancaireId: t.id }
+            });
+          }
+
+          await this.prisma.transactionBancaire.update({
+            where: { id: t.id },
+            data: { statutRapprochement: 'RAPPROCHE' }
+          });
+          matchedCount++;
+          continue;
+        }
+
+        let matchedDepense = depenses.find(d => 
+          Math.abs(d.montant - t.montant) < 0.05 && d.reference && isReferenceMatch(t.description, d.reference)
+        );
+
+        if (matchedDepense) {
           await this.prisma.depense.update({
-            where: { id: depenses[0].id },
+            where: { id: matchedDepense.id },
             data: { statut: 'PAYE', transactionBancaireId: t.id }
           });
-          // Synchroniser l'echeance liee si elle existe
-          if (depenses[0].echeanceId) {
+
+          if (matchedDepense.echeanceId) {
             await this.prisma.echeancePaiement.update({
-              where: { id: depenses[0].echeanceId },
-              data: { statut: 'ENCAISSE', dateEncaissement: new Date() }
+              where: { id: matchedDepense.echeanceId },
+              data: { statut: 'ENCAISSE', dateEncaissement: t.dateTransaction }
+            });
+          }
+
+          await this.prisma.transactionBancaire.update({
+            where: { id: t.id },
+            data: { statutRapprochement: 'RAPPROCHE' }
+          });
+          matchedCount++;
+          continue;
+        }
+
+        const amtEchMatches = echeances.filter(e => Math.abs(e.montant - t.montant) < 0.05);
+        const amtDepMatches = depenses.filter(d => Math.abs(d.montant - t.montant) < 0.05);
+
+        if (amtEchMatches.length === 1 && amtDepMatches.length === 0) {
+          const matchedE = amtEchMatches[0];
+          await this.prisma.echeancePaiement.update({
+            where: { id: matchedE.id },
+            data: { statut: 'ENCAISSE', dateEncaissement: t.dateTransaction }
+          });
+          const linkedDepense = await this.prisma.depense.findFirst({
+            where: { echeanceId: matchedE.id }
+          });
+          if (linkedDepense) {
+            await this.prisma.depense.update({
+              where: { id: linkedDepense.id },
+              data: { statut: 'PAYE', transactionBancaireId: t.id }
             });
           }
           await this.prisma.transactionBancaire.update({
             where: { id: t.id },
             data: { statutRapprochement: 'RAPPROCHE' }
           });
+          matchedCount++;
+        } else if (amtDepMatches.length === 1 && amtEchMatches.length === 0) {
+          const matchedD = amtDepMatches[0];
+          await this.prisma.depense.update({
+            where: { id: matchedD.id },
+            data: { statut: 'PAYE', transactionBancaireId: t.id }
+          });
+          if (matchedD.echeanceId) {
+            await this.prisma.echeancePaiement.update({
+              where: { id: matchedD.echeanceId },
+              data: { statut: 'ENCAISSE', dateEncaissement: t.dateTransaction }
+            });
+          }
+          await this.prisma.transactionBancaire.update({
+            where: { id: t.id },
+            data: { statutRapprochement: 'RAPPROCHE' }
+          });
+          matchedCount++;
         }
       }
     }
-  }
 
+    return { matchedCount };
+  }
   async deleteReleve(id: string) {
     const transactions = await this.prisma.transactionBancaire.findMany({ where: { releveBancaireId: id } });
     let soldeVariation = 0;
