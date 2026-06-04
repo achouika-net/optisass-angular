@@ -1440,7 +1440,7 @@ export class AccountingService {
         totalHT: totalSalesHT,
         totalTVA: totalSalesTVA,
         byRate: Object.entries(salesByRate).map(([rate, val]) => ({ rate: parseInt(rate), ...val })),
-        details: payments.map(p => ({ date: p.transactionBancaire?.dateTransaction || p.date, description: p.facture?.numero || 'Paiement', montantTTC: p.montant || 0, montantHT: (p.montant || 0) / (1 + getPaymentTvaRate(p)/100), montantTVA: (p.montant || 0) - ((p.montant || 0) / (1 + getPaymentTvaRate(p)/100)), taux: getPaymentTvaRate(p) }))
+          details: payments.map(p => ({ date: p.transactionBancaire?.dateTransaction || p.date, description: p.facture?.numero || 'Paiement', montantTTC: p.montant || 0, montantHT: (p.montant || 0) / (1 + getPaymentTvaRate(p)/100), montantTVA: (p.montant || 0) - ((p.montant || 0) / (1 + getPaymentTvaRate(p)/100)), taux: getPaymentTvaRate(p) })).concat(carteDirectTx.map(c => ({ date: c.dateTransaction, description: c.description || 'Paiement Carte (TPE/CMI)', montantTTC: c.montant || 0, montantHT: (c.montant || 0) / 1.20, montantTVA: (c.montant || 0) - ((c.montant || 0) / 1.20), taux: 20 })))
       },
       expenses: {
         totalTTC: totalExpensesTTC + totalBankFeesTTC,
