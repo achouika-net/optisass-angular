@@ -1624,29 +1624,29 @@ export class AccountingService {
       const drawHdr = (y) => {
         doc.rect(40, y, 515, 20).fill('#e2e8f0');
         doc.fillColor('#334155').fontSize(8).font('Helvetica-Bold');
-        doc.text('Date',        50,  y + 6);
-        doc.text('Description', 110, y + 6);
-        doc.text('Mode',        270, y + 6);
-        doc.text('Taux',        325, y + 6);
-        doc.text('Base HT',     365, y + 6);
+        doc.text('Date',        45,  y + 6);
+        doc.text('Description', 100, y + 6);
+        doc.text('Mode',        240, y + 6);
+        doc.text('Taux',        330, y + 6);
+        doc.text('Base HT',     370, y + 6);
         doc.text('TVA',         430, y + 6);
-        doc.text('Total TTC',   480, y + 6);
+        doc.text('Total TTC',   490, y + 6);
         doc.font('Helvetica');
         return y + 20;
       };
 
       const drawRow = (y, d) => {
         const dateStr = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '';
-        const desc = ascii(d.description || '').substring(0, 22);
-        const mode = ascii((d.mode || '').replace(/_/g, ' ')).substring(0, 14);
+        const desc = ascii(d.description || '').substring(0, 24);
+        const mode = ascii((d.mode || '').replace(/_/g, ' ')).substring(0, 16);
         doc.fillColor('#475569').fontSize(7.5);
-        doc.text(dateStr, 50, y + 4);
-        doc.text(desc,    110, y + 4);
-        doc.text(mode,    270, y + 4);
-        doc.text(d.taux + '%',               325, y + 4);
-        doc.text(d.montantHT.toFixed(2),     365, y + 4);
+        doc.text(dateStr, 45, y + 4);
+        doc.text(desc,    100, y + 4);
+        doc.text(mode,    240, y + 4);
+        doc.text(d.taux + '%',               330, y + 4);
+        doc.text(d.montantHT.toFixed(2),     370, y + 4);
         doc.text(d.montantTVA.toFixed(2),    430, y + 4);
-        doc.text(d.montantTTC.toFixed(2),    480, y + 4);
+        doc.text(d.montantTTC.toFixed(2),    490, y + 4);
         return y + 16;
       };
 
