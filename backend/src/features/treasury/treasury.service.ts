@@ -548,6 +548,7 @@ export class TreasuryService {
         fournisseur: r.client,
         montant: Number(r.montant || 0),
         methodePaiement: r.mode,
+        reference: r.numeroPiece,
       })),
       total: s.total,
       subtotals: {

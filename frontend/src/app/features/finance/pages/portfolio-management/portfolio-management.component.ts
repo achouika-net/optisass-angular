@@ -214,6 +214,7 @@ import { ActivatedRoute } from '@angular/router';
                     <mat-select [(ngModel)]="statusFilter" (ngModelChange)="loadData()">
                       <mat-option value="ALL">Tous les statuts</mat-option>
                       <mat-option value="EN_ATTENTE">À Décaisser / Portefeuille</mat-option>
+                      <mat-option value="REMIS_EN_BANQUE">Remis en Banque / Déposé</mat-option>
                       <mat-option value="PAYE">Payé</mat-option>
                     </mat-select>
                   </mat-form-field>
@@ -524,6 +525,13 @@ export class PortfolioManagementComponent implements OnInit {
 
       if (params['modePaiement'] === 'PRISE_EN_CHARGE' || params['mode'] === 'PEC') {
         this.activeTabId = 2;
+      }
+
+      if (params['month']) {
+        this.currentMonth = parseInt(params['month'], 10);
+      }
+      if (params['year']) {
+        this.currentYear = parseInt(params['year'], 10);
       }
 
       this.onTabChange({ index: this.activeTabId });
