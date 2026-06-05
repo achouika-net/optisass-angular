@@ -17,7 +17,7 @@ import { FormsModule } from '@angular/forms';
 import { FinanceService } from '../../services/finance.service';
 import { Chart, registerables } from 'chart.js';
 import { Store } from '@ngrx/store';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { forkJoin, Observable, tap } from 'rxjs';
 import { ChangeDetectorRef } from '@angular/core';
 import { UserCurrentCentreSelector } from '../../../../core/store/auth/auth.selectors';
@@ -28,6 +28,7 @@ import { MatInputModule } from '@angular/material/input';
 import { CompanySettingsService } from '../../../../core/services/company-settings.service';
 import { FinancePrintService } from '../../services/finance-print.service';
 import { CompanySettings } from '../../../../shared/interfaces/company-settings.interface';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 
 Chart.register(...registerables);
 
@@ -52,7 +53,9 @@ Chart.register(...registerables);
         MatDividerModule,
         MatTableModule,
         MatTabsModule,
-        MatProgressSpinnerModule
+        MatProgressSpinnerModule,
+        MatSnackBarModule,
+        RouterModule
     ],
     templateUrl: './finance-dashboard.component.html',
     styles: [`
@@ -303,7 +306,8 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         private router: Router,
         private dialog: MatDialog,
         private printService: FinancePrintService,
-        private settingsService: CompanySettingsService
+        private settingsService: CompanySettingsService,
+        private snackBar: MatSnackBar
     ) {
         console.log('FinanceDashboardComponent Loaded - VERSION 2');
         // Reactivity to center changes
@@ -765,10 +769,28 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         if (!status) return 'bg-slate-50 text-slate-700';
         status = status.toUpperCase();
         if (['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'].some(s => status.includes(s))) return 'bg-blue-50 text-blue-700 border border-blue-100';
-        if (['BANQUE', 'DEPOS'].some(s => status.includes(s))) return 'bg-amber-50 text-amber-700 border border-amber-100';
+        if (['BANQUE', 'DEPOS', 'REMIS_EN_BANQUE'].some(s => status.includes(s))) return 'bg-amber-50 text-amber-700 border border-amber-100';
         if (['ENCAISSE', 'PAYE', 'VALIDE', 'SOLDE', 'DECAISSE', 'DÉCAISSÉ', 'PAYÉ', 'VALIDÉ', 'ENCAISSÉ'].some(s => status.includes(s))) return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
         if (status.includes('REJET')) return 'bg-red-50 text-red-700 border border-red-100';
         return 'bg-slate-50 text-slate-700';
+    }
+
+    updateAlertStatus(alert: any, isClient: boolean, newStatut: string) {
+        const idToUse = alert.echeanceId || alert.id;
+        const request = isClient
+            ? this.financeService.validatePayment(alert.id, newStatut)
+            : this.financeService.validateEcheance(idToUse, newStatut);
+
+        request.subscribe({
+            next: () => {
+                this.snackBar.open('Opération validée', 'OK', { duration: 2000 });
+                this.loadData();
+            },
+            error: (err) => {
+                console.error('Validation error:', err);
+                this.snackBar.open('Erreur lors de la validation', 'OK');
+            }
+        });
     }
 }
 

@@ -745,14 +745,15 @@ export class TreasuryService {
 
   async getPendingAlerts(centreId?: string) {
     const now = new Date();
-    const next7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const next48h = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
     // Tous les types de cheques avec leurs variantes d'encodage
     const chequeTypes = ["CHEQUE","LCN","Chèque","Chéque","Ch├¿que","cheque","Cheque"];
 
     const baseWhere: any = {
-      // Pas de borne inferieure : inclure TOUS les elements en retard + 7 jours a venir
-      dateEcheance: { lte: next7days },
+      // Pas de borne inferieure : inclure TOUS les elements en retard + 48h a venir
+      dateEcheance: { lte: next48h },
       statut: { in: ['EN_ATTENTE', 'REMIS_EN_BANQUE'] },
       type: { in: chequeTypes },
       ...(centreId
@@ -771,8 +772,8 @@ export class TreasuryService {
         where: {
           mode: { in: chequeTypes },
           statut: { in: ['EN_ATTENTE', 'REMIS_EN_BANQUE'] },
-          // Tous les paiements non encaisses (passes + futurs jusqu'a 7j)
-          dateVersement: { lte: next7days },
+          // Tous les paiements non encaisses (passes + futurs jusqu'a 24h)
+          dateVersement: { lte: next24h },
           facture: centreId ? { centreId } : {},
         },
         include: { facture: { include: { client: true } } },
@@ -799,6 +800,7 @@ export class TreasuryService {
         date: p.dateVersement,
         reference: p.reference || 'N/A',
         numeroFacture: p.facture.numero,
+        statut: p.statut,
       })),
       supplier: supplierAlerts.map((e) => ({
         id: e.id,
@@ -815,6 +817,7 @@ export class TreasuryService {
           : e.bonLivraison
             ? 'BL'
             : 'DEPENSE',
+        statut: e.statut,
       })),
     };
   }

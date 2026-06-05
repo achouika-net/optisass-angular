@@ -243,17 +243,43 @@
                 <!-- Client Alerts -->
                 <div *ngIf="summary.alerts.client?.length">
                     <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
-                        <mat-icon class="text-xs">person</mat-icon> Cheques Clients a Encaisser (En retard + 7j)
+                        <mat-icon class="text-xs">person</mat-icon> Cheques Clients a Encaisser (En retard / Prevu sous 24h)
                     </h3>
-                    <div class="alert-item" *ngFor="let alert of summary.alerts.client">
-                        <div class="flex flex-col">
-                            <span class="font-bold text-sm text-gray-800">{{ alert.client }}</span>
-                            <span class="text-xs text-gray-500">Ref: {{ alert.numeroFacture }} - {{ alert.reference
-                                }}</span>
+                    <div class="alert-item flex items-center justify-between py-3 border-b border-gray-100 last:border-0" *ngFor="let alert of summary.alerts.client">
+                        <div class="flex flex-col flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-sm text-gray-800">{{ alert.client }}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase" 
+                                      [ngClass]="alert.statut === 'REMIS_EN_BANQUE' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-blue-100 text-blue-800 border border-blue-200'">
+                                    {{ alert.statut === 'REMIS_EN_BANQUE' ? 'Remis' : 'Portefeuille' }}
+                                </span>
+                            </div>
+                            <span class="text-xs text-gray-500">Ref: {{ alert.numeroFacture }} - {{ alert.reference }}</span>
                         </div>
-                        <div class="flex flex-col items-end">
-                            <span class="font-bold text-red-600">{{ alert.montant | number:'1.2-2' }} DH</span>
-                            <span class="alert-tag tag-24h">{{ alert.date | date:'dd/MM' }}</span>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col items-end min-w-[80px]">
+                                <span class="font-bold text-red-600">{{ alert.montant | number:'1.2-2' }} DH</span>
+                                <span class="alert-tag tag-24h">{{ alert.date | date:'dd/MM' }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button *ngIf="alert.statut !== 'REMIS_EN_BANQUE'" 
+                                        mat-icon-button 
+                                        matTooltip="Remettre en banque" 
+                                        (click)="updateAlertStatus(alert, true, 'REMIS_EN_BANQUE'); $event.stopPropagation()">
+                                    <mat-icon class="!text-amber-600">account_balance</mat-icon>
+                                </button>
+                                <button mat-icon-button 
+                                        matTooltip="Confirmer l'encaissement" 
+                                        (click)="updateAlertStatus(alert, true, 'ENCAISSE'); $event.stopPropagation()">
+                                    <mat-icon class="!text-green-600">check_circle</mat-icon>
+                                </button>
+                                <a mat-icon-button 
+                                   [routerLink]="['/finance/portfolio']" 
+                                   [queryParams]="{tab: 'INCOMING'}" 
+                                   matTooltip="Suivi du chèque / LCN">
+                                    <mat-icon class="!text-blue-500">visibility</mat-icon>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -261,16 +287,31 @@
                 <!-- Supplier Alerts -->
                 <div *ngIf="summary.alerts.supplier?.length">
                     <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
-                        <mat-icon class="text-xs">store</mat-icon> Echeances Fournisseurs (En retard + 7j)
+                        <mat-icon class="text-xs">store</mat-icon> Echeances Fournisseurs (En retard / Prevu sous 48h)
                     </h3>
-                    <div class="alert-item" *ngFor="let alert of summary.alerts.supplier">
-                        <div class="flex flex-col">
+                    <div class="alert-item flex items-center justify-between py-3 border-b border-gray-100 last:border-0" *ngFor="let alert of summary.alerts.supplier">
+                        <div class="flex flex-col flex-1">
                             <span class="font-bold text-sm text-gray-800">{{ alert.fournisseur }}</span>
-                            <span class="text-xs text-gray-500">{{ alert.reference }} ({{ alert.source }})</span>
+                            <span class="text-xs text-gray-500">Ref: {{ alert.reference }} ({{ alert.source }})</span>
                         </div>
-                        <div class="flex flex-col items-end">
-                            <span class="font-bold text-orange-600">{{ alert.montant | number:'1.2-2' }} DH</span>
-                            <span class="alert-tag tag-48h">{{ alert.date | date:'dd/MM' }}</span>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col items-end min-w-[80px]">
+                                <span class="font-bold text-orange-600">{{ alert.montant | number:'1.2-2' }} DH</span>
+                                <span class="alert-tag tag-48h">{{ alert.date | date:'dd/MM' }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button mat-icon-button 
+                                        matTooltip="Confirmer décaissement" 
+                                        (click)="updateAlertStatus(alert, false, 'PAYE'); $event.stopPropagation()">
+                                    <mat-icon class="!text-green-600">check_circle</mat-icon>
+                                </button>
+                                <a mat-icon-button 
+                                   [routerLink]="['/finance/portfolio']" 
+                                   [queryParams]="{tab: 'OUTGOING'}" 
+                                   matTooltip="Suivi des chèques / LCN">
+                                    <mat-icon class="!text-blue-500">visibility</mat-icon>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
