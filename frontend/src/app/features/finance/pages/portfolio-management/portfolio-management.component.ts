@@ -577,7 +577,8 @@ export class PortfolioManagementComponent implements OnInit {
 
     request.subscribe({
       next: (res: any) => {
-        this.items = res.data;
+        const dateField = this.activeTabId === 0 ? 'dateVersement' : 'dateEcheance';
+        this.items = this.sortByDateValeur(res.data, dateField);
         this.totals = {
           inHand: res.subtotals.inHand || 0,
           deposited: res.subtotals.deposited || 0,
@@ -619,7 +620,7 @@ export class PortfolioManagementComponent implements OnInit {
 
     this.financeService.getConsolidatedIncomings(filters).subscribe({
       next: (res: any) => {
-        this.pecItems = res.data;
+        this.pecItems = this.sortByDateValeur(res.data, 'dateVersement');
         this.pecTotals = {
           inHand: res.subtotals.inHand || 0,
           deposited: res.subtotals.deposited || 0,
@@ -638,6 +639,15 @@ export class PortfolioManagementComponent implements OnInit {
 
   calculateTotals() {
     // Logic moved to loadData/Server-side for performance and accuracy
+  }
+
+  /** Trie un tableau par date valeur croissante. Les elements sans date sont places en fin. */
+  sortByDateValeur(data: any[], dateField: string): any[] {
+    return [...data].sort((a, b) => {
+      const da = a[dateField] ? new Date(a[dateField]).getTime() : Infinity;
+      const db = b[dateField] ? new Date(b[dateField]).getTime() : Infinity;
+      return da - db;
+    });
   }
 
   getStatusClass(status: string) {
