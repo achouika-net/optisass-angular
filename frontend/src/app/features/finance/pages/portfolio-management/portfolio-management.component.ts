@@ -646,7 +646,7 @@ export class PortfolioManagementComponent implements OnInit {
     return [...data].sort((a, b) => {
       const da = a[dateField] ? new Date(a[dateField]).getTime() : Infinity;
       const db = b[dateField] ? new Date(b[dateField]).getTime() : Infinity;
-      return da - db;
+      return db - da;
     });
   }
 
