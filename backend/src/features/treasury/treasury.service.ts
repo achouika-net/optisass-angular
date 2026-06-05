@@ -497,6 +497,8 @@ export class TreasuryService {
         libelle: this.cleanText(r.libelle),
         fournisseur: this.cleanText(r.fournisseur),
         montant: Number(r.montant || 0),
+        reference: r.numeroPiece || r.reference || null,
+        modePaiement: r.methodePaiement || r.type || null,
       })),
       total: s.total,
       subtotals: {
@@ -548,7 +550,8 @@ export class TreasuryService {
         fournisseur: r.client,
         montant: Number(r.montant || 0),
         methodePaiement: r.mode,
-        reference: r.numeroPiece,
+        modePaiement: r.mode,
+        reference: r.numeroPiece || r.reference || null,
       })),
       total: s.total,
       subtotals: {
