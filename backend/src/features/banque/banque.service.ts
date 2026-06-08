@@ -104,7 +104,8 @@ export class BanqueService {
             numeroCompte: rib,
             type: 'STE',
             soldeInitial: 0,
-            soldeActuel: 0
+            soldeActuel: 0,
+            centreId: tenantId || null
           }
         });
         autoCreated = true;
@@ -117,6 +118,12 @@ export class BanqueService {
             data: { rib: rib, bank: detectedAccountInfo.bankName || 'Banque inconnue' }
           });
         }
+      } else if (tenantId && !existingCompte.centreId) {
+        // Link existing bank account if it has no centreId
+        existingCompte = await this.prisma.compteBancaire.update({
+          where: { id: existingCompte.id },
+          data: { centreId: tenantId }
+        });
       }
       finalCompteId = existingCompte.id;
     }
@@ -125,6 +132,12 @@ export class BanqueService {
       const allComptes = await this.prisma.compteBancaire.findMany();
       if (allComptes.length === 1) {
         finalCompteId = allComptes[0].id;
+        if (tenantId && !allComptes[0].centreId) {
+          await this.prisma.compteBancaire.update({
+            where: { id: finalCompteId },
+            data: { centreId: tenantId }
+          });
+        }
       } else if (allComptes.length > 1) {
         throw new BadRequestException("Impossible d'associer ce releve automatiquement (plusieurs comptes existants et aucun RIB detecte). Veuillez selectionner le compte manuellement.");
       } else {
