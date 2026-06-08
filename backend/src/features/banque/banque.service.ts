@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class BanqueService {
   constructor(private prisma: PrismaService) {}
 
-  async createCompte(data: any) {
+  async createCompte(data: any, tenantId?: string) {
     // Ensure numeric fields are correctly formatted
     const formattedData = {
       nom: data.nom,
@@ -14,7 +14,7 @@ export class BanqueService {
       type: data.type || 'STE',
       soldeInitial: typeof data.soldeInitial === 'number' ? data.soldeInitial : 0,
       soldeActuel: typeof data.soldeActuel === 'number' ? data.soldeActuel : 0,
-      centreId: data.centreId || null
+      centreId: data.centreId || tenantId || null
     };
     return this.prisma.compteBancaire.create({ data: formattedData });
   }
@@ -68,12 +68,25 @@ export class BanqueService {
     });
   }
 
-  async importReleve(parsedResult: any, compteBancaireId?: string) {
+  async importReleve(parsedResult: any, compteBancaireId?: string, tenantId?: string) {
     const { transactions: parsedData, detectedAccountInfo } = parsedResult;
     if (!parsedData || parsedData.length === 0) return null;
 
     let finalCompteId = compteBancaireId;
-    let autoCreated = false;
+      let autoCreated = false;
+
+      // If a bank account is selected and has no centreId, link it to the current tenant/center
+      if (finalCompteId && tenantId) {
+        const compte = await this.prisma.compteBancaire.findUnique({
+          where: { id: finalCompteId }
+        });
+        if (compte && !compte.centreId) {
+          await this.prisma.compteBancaire.update({
+            where: { id: finalCompteId },
+            data: { centreId: tenantId }
+          });
+        }
+      }
 
     // Si on n'a pas forcÃ© de compteId, on essaie de dÃ©tecter ou crÃ©er
     if (!finalCompteId && detectedAccountInfo && detectedAccountInfo.rib) {
@@ -236,7 +249,7 @@ export class BanqueService {
           date: dateTransaction,
           montant: ech.montant,
           categorie: ech.factureFournisseurId ? 'Facture Fournisseur' : 'Bon de Livraison',
-          description: `${ech.type} N° ${ech.reference || ''}`.trim(),
+          description: `${ech.type} Nï¿½ ${ech.reference || ''}`.trim(),
           modePaiement: ech.type,
           statut: 'PAYE',
           centreId: centreId,
@@ -536,7 +549,7 @@ export class BanqueService {
     });
 
     // Depenses sortantes en attente de rapprochement bancaire
-    const cashModes = ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'especes', 'Prelevement', 'PRELEVEMENT', 'Caisse', 'CAISSE'];
+    const cashModes = ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espï¿½ces', 'especes', 'Prelevement', 'PRELEVEMENT', 'Caisse', 'CAISSE'];
     const directDepenses = await this.prisma.depense.findMany({
       where: {
         statut: { in: ['REMIS_EN_BANQUE', 'A_PAYER'] },
@@ -552,7 +565,7 @@ export class BanqueService {
       where: {
         statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
         type: {
-          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'especes', 'ESPCES', 'Caisse', 'CAISSE']
+          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espï¿½ces', 'especes', 'ESPCES', 'Caisse', 'CAISSE']
         }
       },
       include: {

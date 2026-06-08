@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UploadedFile, UseInterceptors, Headers } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { BanqueService } from './banque.service';
 import { ReleveParserService } from './releve-parser.service';
@@ -12,8 +12,8 @@ export class BanqueController {
   ) {}
 
   @Post('comptes')
-  createCompte(@Body() data: any) {
-    return this.banqueService.createCompte(data);
+  createCompte(@Body() data: any, @Headers('Tenant') tenantId?: string) {
+    return this.banqueService.createCompte(data, tenantId);
   }
 
   @Get('comptes')
@@ -38,7 +38,11 @@ export class BanqueController {
 
   @Post('releves/import')
   @UseInterceptors(FileInterceptor('file'))
-  async importReleve(@UploadedFile() file: Express.Multer.File, @Body('compteId') compteId?: string) {
+  async importReleve(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('compteId') compteId?: string,
+    @Headers('Tenant') tenantId?: string
+  ) {
     const ext = extname(file.originalname).toLowerCase();
     let parsedResult: any;
     
