@@ -1,4 +1,4 @@
-<div class="settings-container">
+﻿<div class="settings-container">
   <!-- Header Section -->
   <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
     <div>
@@ -6,37 +6,52 @@
         <div class="p-2 bg-blue-50 rounded-xl">
           <mat-icon class="text-blue-600 block">settings</mat-icon>
         </div>
-        Paramètres des Verres
+        Parametres des Verres
       </h1>
-      <p class="text-slate-500 mt-1 ml-12">Gérez vos marques, matières et tarifs verres standards</p>
+      <p class="text-slate-500 mt-1 ml-12">Gerez vos marques, matieres et tarifs verres standards</p>
     </div>
-    
     <button type="button" mat-flat-button color="accent" class="btn-add shadow-lg shadow-amber-200/50" (click)="runSeed()">
       <mat-icon>auto_fix_high</mat-icon>
-      Charger les données par défaut
+      Charger les donnees par defaut
     </button>
   </div>
 
   <mat-card class="glass-card shadow-sm border border-slate-200">
     <mat-tab-group animationDuration="200ms">
-      
-      <!-- Brands Tab -->
+
+      <!-- ======================== BRANDS TAB ======================== -->
       <mat-tab>
         <ng-template mat-tab-label>
           <mat-icon class="mr-2">branding_watermark</mat-icon>
           Marques
         </ng-template>
-        
+
         <div class="tab-content px-6">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-bold text-slate-800">Collections Disponibles</h2>
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Collections Disponibles</h2>
+              <p class="text-slate-500 text-sm mt-1">
+                Definissez la marge beneficiaire par marque. Elle sera appliquee au prix de base pour calculer le prix de vente.
+              </p>
+            </div>
             <button type="button" mat-raised-button color="primary" class="btn-add" (click)="addBrand()">
-              <mat-icon>add</mat-icon> ADD une marque
+              <mat-icon>add</mat-icon> Ajouter une marque
             </button>
           </div>
 
+          <!-- Equivalence reminder banner -->
+          <div class="mb-4 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center gap-4 text-sm text-indigo-700">
+            <mat-icon class="text-indigo-400 flex-shrink-0">calculate</mat-icon>
+            <span>
+              <strong>Marge % </strong> et <strong>Coefficient &times;</strong> sont equivalents et se calculent automatiquement.
+              &nbsp;|&nbsp; Marge 30% = Coef &times;1.4286 &nbsp;|&nbsp; Marge 40% = Coef &times;1.6667 &nbsp;|&nbsp; Marge 50% = Coef &times;2.0000
+            </span>
+          </div>
+
           <div class="border rounded-2xl overflow-hidden shadow-sm">
-            <table mat-table [dataSource]="brands" class="premium-table">
+            <table mat-table [dataSource]="brands" class="premium-table w-full">
+
+              <!-- Name Column -->
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>Marque</th>
                 <td mat-cell *matCellDef="let brand" class="font-semibold text-slate-700">
@@ -44,51 +59,126 @@
                 </td>
               </ng-container>
 
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="w-24 text-center">Actions</th>
+              <!-- Marge + Coef Column -->
+              <ng-container matColumnDef="marge">
+                <th mat-header-cell *matHeaderCellDef>
+                  <div class="flex items-center gap-6">
+                    <span>Marge %</span>
+                    <span class="text-slate-400 font-normal text-xs">&harr;</span>
+                    <span>Coefficient &times;</span>
+                  </div>
+                </th>
                 <td mat-cell *matCellDef="let brand">
-                  <div class="flex justify-center">
-                    <button type="button" mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteBrand(brand.id)">
-                      <mat-icon>delete_outline</mat-icon>
+                  <div class="flex items-center gap-2 py-1">
+
+                    <!-- Marge % input -->
+                    <div class="relative">
+                      <input type="number"
+                             [value]="brand.margeDefaut || 0"
+                             #margeInput
+                             min="0" max="99" step="0.01"
+                             title="Marge beneficiaire en %"
+                             (input)="onMargeInput(margeInput, coefInput)"
+                             class="border border-slate-200 rounded-lg py-2 pl-3 pr-7 w-24 text-sm font-mono
+                                    focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none transition
+                                    bg-white hover:border-slate-300">
+                      <span class="absolute right-2.5 top-2 text-slate-400 text-xs font-bold pointer-events-none">%</span>
+                    </div>
+
+                    <!-- Arrow separator -->
+                    <div class="flex flex-col items-center text-slate-300 text-xs select-none">
+                      <mat-icon class="text-slate-300" style="font-size:16px;width:16px;height:16px">swap_horiz</mat-icon>
+                    </div>
+
+                    <!-- Coefficient input -->
+                    <div class="relative">
+                      <span class="absolute left-2.5 top-2 text-slate-400 text-xs font-bold pointer-events-none">&times;</span>
+                      <input type="number"
+                             [value]="margeToCoef(brand.margeDefaut)"
+                             #coefInput
+                             min="1" step="0.0001"
+                             title="Coefficient multiplicateur"
+                             (input)="onCoefInput(coefInput, margeInput)"
+                             class="border border-slate-200 rounded-lg py-2 pl-7 pr-3 w-28 text-sm font-mono
+                                    focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 outline-none transition
+                                    bg-white hover:border-slate-300">
+                    </div>
+
+                    <!-- Apply button -->
+                    <button type="button" mat-flat-button color="primary"
+                            (click)="updateBrandMarge(brand.id, margeInput.value)"
+                            class="text-xs min-w-0 px-3">
+                      <mat-icon class="icon-small">check</mat-icon>
+                      Appliquer
                     </button>
+
+                    <!-- Status badge -->
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                          [class]="(brand.margeDefaut > 0) ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                                           : 'bg-slate-100 text-slate-400'">
+                      {{ brand.margeDefaut > 0 ? ('x' + margeToCoef(brand.margeDefaut)) : 'Non definie' }}
+                    </span>
                   </div>
                 </td>
               </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="['name', 'actions']"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['name', 'actions']"></tr>
+              <!-- Actions Column -->
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef class="w-20 text-center">Actions</th>
+                <td mat-cell *matCellDef="let brand" class="text-center">
+                  <button type="button" mat-icon-button color="warn" class="hover:bg-red-50"
+                          (click)="deleteBrand(brand.id)" matTooltip="Supprimer la marque">
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="['name', 'marge', 'actions']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['name', 'marge', 'actions']"></tr>
             </table>
-            
+
             <div *ngIf="brands.length === 0 && !loading" class="empty-state p-16">
               <mat-icon>inventory_2</mat-icon>
-              <p>Aucune marque configurée.</p>
+              <p>Aucune marque configuree.</p>
+            </div>
+          </div>
+
+          <!-- Info box -->
+          <div class="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3">
+            <mat-icon class="text-blue-400 mt-0.5 flex-shrink-0">info</mat-icon>
+            <div class="text-sm text-blue-700">
+              <strong>Comment fonctionne la marge ?</strong>
+              Le prix de vente est calcule a partir du prix de base de l'indice multiplie par le coefficient.
+              <br>
+              Exemple : indice 1.50 a 200 MAD &times; coef 1.4286 (marge 30%) = <strong>286 MAD</strong> prix de vente.
+              Modifier la marge recalcule automatiquement les prix de vente de tous les verres actifs de cette marque.
             </div>
           </div>
         </div>
       </mat-tab>
 
-      <!-- Materials Tab -->
+      <!-- ======================== MATERIALS TAB ======================== -->
       <mat-tab>
         <ng-template mat-tab-label>
           <mat-icon class="mr-2">layers</mat-icon>
-          Matières & Indices
+          Matieres &amp; Indices
         </ng-template>
 
         <div class="tab-content px-6">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold text-slate-800">Gestion des Tarifs par Indice</h2>
             <button type="button" mat-raised-button color="primary" class="btn-add" (click)="addMaterial()">
-              <mat-icon>add</mat-icon> ADD une matière
+              <mat-icon>add</mat-icon> ADD une matiere
             </button>
           </div>
 
-          <div *ngFor="let material of materials" class="material-block">
-            <div class="material-header">
+          <div *ngFor="let material of materials" class="material-block mb-6">
+            <div class="material-header p-4 bg-slate-50 border-b flex justify-between items-center">
               <div class="flex items-center gap-3">
                 <div class="w-2 h-8 bg-blue-500 rounded-full"></div>
-                <span class="mat-title uppercase">{{ material.name }}</span>
+                <span class="mat-title uppercase font-bold text-slate-700">{{ material.name }}</span>
               </div>
-              <div class="action-buttons">
+              <div class="action-buttons flex items-center">
                 <button type="button" mat-button color="primary" class="font-bold" (click)="addIndex(material.id)">
                   <mat-icon>add_circle</mat-icon> ADD un indice
                 </button>
@@ -98,7 +188,7 @@
                 </button>
               </div>
             </div>
-            
+
             <div class="p-4 bg-white">
               <div class="rounded-xl border border-slate-100 overflow-hidden">
                 <table class="w-full text-sm">
@@ -114,10 +204,11 @@
                     <tr *ngFor="let idx of material.indices" class="hover:bg-slate-50/50 transition-colors">
                       <td class="p-4 font-bold text-slate-700 text-base col-indice">{{ idx.value }}</td>
                       <td class="p-4 col-price">
-                        <div class="price-input-wrapper">
-                          <input type="number" [value]="idx.price" #priceInput title="Prix de base de l'indice">
-                          <span class="currency">MAD</span>
-                          <button type="button" mat-icon-button color="primary" 
+                        <div class="price-input-wrapper flex items-center">
+                          <input type="number" [value]="idx.price" #priceInput
+                                 title="Prix de base de l'indice" class="border p-1 rounded w-24 mr-2">
+                          <span class="currency text-slate-500 mr-2">MAD</span>
+                          <button type="button" mat-icon-button color="primary"
                                   (click)="updateIndexPrice(idx.id, priceInput.value)"
                                   [disabled]="priceInput.value == idx.price"
                                   class="ml-2 bg-white shadow-sm border border-slate-100">
@@ -135,10 +226,12 @@
                       </td>
                       <td class="p-4 text-center col-actions">
                         <div class="flex justify-center gap-1">
-                          <button type="button" mat-icon-button color="accent" (click)="viewHistory('index', idx.id, idx.value)" title="Historique">
+                          <button type="button" mat-icon-button color="accent"
+                                  (click)="viewHistory('index', idx.id, idx.value)" title="Historique">
                             <mat-icon class="icon-small">history</mat-icon>
                           </button>
-                          <button type="button" mat-icon-button color="warn" (click)="deleteIndex(idx.id)" class="opacity-60 hover:opacity-100">
+                          <button type="button" mat-icon-button color="warn" (click)="deleteIndex(idx.id)"
+                                  class="opacity-60 hover:opacity-100">
                             <mat-icon class="icon-small">delete_outline</mat-icon>
                           </button>
                         </div>
@@ -147,52 +240,52 @@
                   </tbody>
                 </table>
               </div>
-              
-              <div *ngIf="material.indices?.length === 0" class="p-12 text-center text-slate-400 italic bg-slate-50/50 rounded-xl mt-2 border border-dashed border-slate-200">
+
+              <div *ngIf="material.indices?.length === 0"
+                   class="p-12 text-center text-slate-400 italic bg-slate-50/50 rounded-xl mt-2 border border-dashed border-slate-200">
                 <mat-icon class="mb-2 opacity-30">info_outline</mat-icon>
-                <p>Aucun indice configuré pour cette matière.</p>
+                <p>Aucun indice configure pour cette matiere.</p>
               </div>
             </div>
           </div>
 
           <div *ngIf="materials.length === 0 && !loading" class="empty-state p-16">
             <mat-icon>layers_clear</mat-icon>
-            <p>Aucune matière configurée.</p>
+            <p>Aucune matiere configuree.</p>
           </div>
         </div>
       </mat-tab>
 
-      <!-- Treatments Tab -->
+      <!-- ======================== TREATMENTS TAB ======================== -->
       <mat-tab>
         <ng-template mat-tab-label>
           <mat-icon class="mr-2">auto_fix_normal</mat-icon>
           Traitements
         </ng-template>
-        
+
         <div class="tab-content px-6">
           <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-bold text-slate-800">Options de Traitements & Majorations</h2>
+            <h2 class="text-xl font-bold text-slate-800">Options de Traitements &amp; Majorations</h2>
             <button type="button" mat-raised-button color="primary" class="btn-add" (click)="addTreatment()">
               <mat-icon>add</mat-icon> ADD un traitement
             </button>
           </div>
 
           <div class="border rounded-2xl overflow-hidden shadow-sm">
-            <table mat-table [dataSource]="treatments" class="premium-table">
+            <table mat-table [dataSource]="treatments" class="premium-table w-full">
               <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef>Désignation</th>
-                <td mat-cell *matCellDef="let t" class="font-semibold text-slate-700">
-                  {{ t.name }}
-                </td>
+                <th mat-header-cell *matHeaderCellDef class="p-4">Designation</th>
+                <td mat-cell *matCellDef="let t" class="font-semibold text-slate-700 p-4">{{ t.name }}</td>
               </ng-container>
 
               <ng-container matColumnDef="price">
-                <th mat-header-cell *matHeaderCellDef>Majoration (MAD)</th>
-                <td mat-cell *matCellDef="let t">
-                  <div class="price-input-wrapper">
-                    <input type="number" [value]="t.price" #tPriceInput title="Majoration prix traitement">
-                    <span class="currency">MAD</span>
-                    <button type="button" mat-icon-button color="primary" 
+                <th mat-header-cell *matHeaderCellDef class="p-4">Majoration (MAD)</th>
+                <td mat-cell *matCellDef="let t" class="p-4">
+                  <div class="price-input-wrapper flex items-center">
+                    <input type="number" [value]="t.price" #tPriceInput
+                           title="Majoration prix traitement" class="border p-1 rounded w-24 mr-2">
+                    <span class="currency text-slate-500 mr-2">MAD</span>
+                    <button type="button" mat-icon-button color="primary"
                             (click)="updateTreatmentPrice(t.id, tPriceInput.value)"
                             [disabled]="tPriceInput.value == t.price"
                             class="ml-2 bg-white shadow-sm border border-slate-100">
@@ -203,8 +296,8 @@
               </ng-container>
 
               <ng-container matColumnDef="stock">
-                <th mat-header-cell *matHeaderCellDef>Stock</th>
-                <td mat-cell *matCellDef="let t">
+                <th mat-header-cell *matHeaderCellDef class="p-4">Stock</th>
+                <td mat-cell *matCellDef="let t" class="p-4">
                   <div class="flex items-center gap-2">
                     <span class="font-bold" [class.text-red-500]="t.quantite <= 0">{{ t.quantite || 0 }}</span>
                     <button type="button" mat-icon-button (click)="adjustStock('treatment', t.id, t.name)" title="Ajuster le stock">
@@ -215,13 +308,14 @@
               </ng-container>
 
               <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="w-24 text-center">Actions</th>
-                <td mat-cell *matCellDef="let t">
+                <th mat-header-cell *matHeaderCellDef class="w-32 text-center p-4">Actions</th>
+                <td mat-cell *matCellDef="let t" class="p-4 text-center">
                   <div class="flex justify-center gap-1">
-                    <button type="button" mat-icon-button color="accent" (click)="viewHistory('treatment', t.id, t.name)" title="Historique">
+                    <button type="button" mat-icon-button color="accent"
+                            (click)="viewHistory('treatment', t.id, t.name)" title="Historique">
                       <mat-icon class="icon-small">history</mat-icon>
                     </button>
-                    <button type="button" mat-icon-button color="warn" class="hover:bg-red-50" (click)="deleteTreatment(t.id)">
+                    <button type="button" mat-icon-button color="warn" (click)="deleteTreatment(t.id)">
                       <mat-icon>delete_outline</mat-icon>
                     </button>
                   </div>
@@ -231,10 +325,10 @@
               <tr mat-header-row *matHeaderRowDef="['name', 'price', 'stock', 'actions']"></tr>
               <tr mat-row *matRowDef="let row; columns: ['name', 'price', 'stock', 'actions']"></tr>
             </table>
-            
-            <div *ngIf="treatments.length === 0 && !loading" class="empty-state p-16">
-              <mat-icon>blur_off</mat-icon>
-              <p>Aucun traitement configuré.</p>
+
+            <div *ngIf="treatments.length === 0 && !loading" class="empty-state p-16 text-center">
+              <mat-icon>auto_fix_off</mat-icon>
+              <p>Aucun traitement configure.</p>
             </div>
           </div>
         </div>
@@ -242,20 +336,4 @@
 
     </mat-tab-group>
   </mat-card>
-
-  <!-- Professional Loading Overlay -->
-  <div class="loading-overlay fixed inset-0 z-[9999] flex items-center justify-center" *ngIf="loading">
-    <div class="spinner-container">
-      <div class="relative">
-        <mat-spinner diameter="60" color="primary"></mat-spinner>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <mat-icon class="text-blue-100 opacity-20 scale-150">settings</mat-icon>
-        </div>
-      </div>
-      <p>Chargement des paramètres...</p>
-      <button type="button" mat-stroked-button color="primary" class="mt-4" (click)="loadAll()">
-        <mat-icon>refresh</mat-icon> Réessayer
-      </button>
-    </div>
-  </div>
 </div>

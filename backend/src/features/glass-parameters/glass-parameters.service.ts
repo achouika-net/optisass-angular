@@ -120,7 +120,20 @@ export class GlassParametersService {
     const [brands, materials, treatments] = await Promise.all([
       this.prisma.glassBrand.findMany({ orderBy: { name: 'asc' } }),
       this.prisma.glassMaterial.findMany({
-        include: { indices: { orderBy: { value: 'asc' } } },
+        include: {
+          indices: {
+            orderBy: { value: 'asc' },
+            include: {
+              verreMarques: {
+                where: { actif: true },
+                include: {
+                  brand: { select: { id: true, name: true, margeDefaut: true } },
+                },
+                orderBy: { epaisseur: 'asc' },
+              },
+            },
+          },
+        },
         orderBy: { name: 'asc' },
       }),
       this.prisma.glassTreatment.findMany({ orderBy: { name: 'asc' } }),
@@ -130,12 +143,46 @@ export class GlassParametersService {
   }
 
   // Brands
-  async createBrand(name: string) {
-    return this.prisma.glassBrand.create({ data: { name } });
+  async createBrand(name: string, margeDefaut?: number) {
+    return this.prisma.glassBrand.create({
+      data: {
+        name,
+        margeDefaut: margeDefaut ?? 0,
+      },
+    });
   }
 
   async deleteBrand(id: string) {
     return this.prisma.glassBrand.delete({ where: { id } });
+  }
+
+  async updateBrand(id: string, data: { name?: string; margeDefaut?: number }) {
+    return this.prisma.$transaction(async (tx) => {
+      const brand = await tx.glassBrand.update({
+        where: { id },
+        data: {
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.margeDefaut !== undefined && { margeDefaut: data.margeDefaut }),
+        },
+      });
+
+      if (data.margeDefaut !== undefined && data.margeDefaut > 0 && data.margeDefaut < 100) {
+        const verres = await tx.verreMarque.findMany({
+          where: { brandId: id, actif: true },
+        });
+
+        for (const v of verres) {
+          await tx.verreMarque.update({
+            where: { id: v.id },
+            data: {
+              prixVente: Math.round(v.prixAchat / (1 - data.margeDefaut / 100)),
+            },
+          });
+        }
+      }
+
+      return brand;
+    });
   }
 
   // Materials

@@ -195,7 +195,8 @@ export function calculateLensPrice(
     material: string,
     index: string,
     treatments: string[],
-    params?: GlassParameters
+    params?: GlassParameters,
+    brandName?: string
 ): number {
     if (!material || !index) return 0;
 
@@ -298,6 +299,14 @@ export function calculateLensPrice(
             else if (t.includes('durci')) treatmentCost += 50;
             else if (t.includes('hydro')) treatmentCost += 100;
         });
+    }
+
+    // Apply brand default margin to basePrice if configured
+    if (params?.brands && brandName) {
+        const brand = params.brands.find((b) => b.name.toLowerCase() === brandName.toLowerCase());
+        if (brand && brand.margeDefaut && brand.margeDefaut > 0 && brand.margeDefaut < 100) {
+            basePrice = basePrice / (1 - brand.margeDefaut / 100);
+        }
     }
 
     return Math.round(basePrice + treatmentCost);

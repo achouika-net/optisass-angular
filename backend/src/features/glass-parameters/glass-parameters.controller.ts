@@ -33,8 +33,16 @@ export class GlassParametersController {
 
   // Brands
   @Post('brands')
-  createBrand(@Body('name') name: string) {
-    return this.service.createBrand(name);
+  createBrand(@Body('name') name: string, @Body('margeDefaut') margeDefaut?: number) {
+    return this.service.createBrand(name, margeDefaut);
+  }
+
+  @Patch('brands/:id')
+  updateBrand(
+    @Param('id') id: string,
+    @Body() data: { name?: string; margeDefaut?: number },
+  ) {
+    return this.service.updateBrand(id, data);
   }
 
   @Delete('brands/:id')

@@ -44,6 +44,7 @@ import { DiagController } from './diag.controller';
 import { UploadsModule } from './features/uploads/uploads.module';
 import { StorageModule } from './common/storage/storage.module';
 import { BanqueModule } from './features/banque/banque.module';
+import { VerreBrandModule } from './features/verre-brand/verre-brand.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { BanqueModule } from './features/banque/banque.module';
       serveRoot: '/uploads',
     }),
     BanqueModule,
+    VerreBrandModule,
   ],
   controllers: [DiagController, GlassParametersController],
   providers: [],

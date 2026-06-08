@@ -958,6 +958,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         verresGroup.get('matiere')?.valueChanges.subscribe(updatePrice);
         verresGroup.get('indice')?.valueChanges.subscribe(updatePrice);
         verresGroup.get('traitement')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('marque')?.valueChanges.subscribe(updatePrice);
 
         // Split Logic
         verresGroup.get('differentODOG')?.valueChanges.subscribe((isSplit: boolean) => {
@@ -986,6 +987,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
         verresGroup.get('indiceOD')?.valueChanges.subscribe(updatePrice);
         verresGroup.get('traitementOD')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('marqueOD')?.valueChanges.subscribe(updatePrice);
         
         verresGroup.get('matiereOG')?.valueChanges.subscribe((val) => {
             this.updateLensIndicesForEye('OG', group);
@@ -993,6 +995,7 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         });
         verresGroup.get('indiceOG')?.valueChanges.subscribe(updatePrice);
         verresGroup.get('traitementOG')?.valueChanges.subscribe(updatePrice);
+        verresGroup.get('marqueOG')?.valueChanges.subscribe(updatePrice);
 
         // Sync Price in Simple Mode
         verresGroup.get('prixOD')?.valueChanges.subscribe((val) => {
@@ -1037,14 +1040,16 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const matiereOD = verresGroup.get('matiereOD')?.value;
             const indiceOD = verresGroup.get('indiceOD')?.value;
             const traitementsOD = verresGroup.get('traitementOD')?.value || [];
+            const marqueOD = verresGroup.get('marqueOD')?.value || '';
 
-            prixOD = calculateLensPrice(matiereOD, indiceOD, traitementsOD, this.allGlassParameters || undefined);
+            prixOD = calculateLensPrice(matiereOD, indiceOD, traitementsOD, this.allGlassParameters || undefined, marqueOD);
         } else {
             const matiere = verresGroup.get('matiere')?.value;
             const indice = verresGroup.get('indice')?.value;
             const traitements = verresGroup.get('traitement')?.value || [];
+            const marque = verresGroup.get('marque')?.value || '';
 
-            prixOD = calculateLensPrice(matiere, indice, traitements, this.allGlassParameters || undefined);
+            prixOD = calculateLensPrice(matiere, indice, traitements, this.allGlassParameters || undefined, marque);
         }
 
         // Prix OG
@@ -1053,8 +1058,9 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             const matiereOG = verresGroup.get('matiereOG')?.value;
             const indiceOG = verresGroup.get('indiceOG')?.value;
             const traitementsOG = verresGroup.get('traitementOG')?.value || [];
+            const marqueOG = verresGroup.get('marqueOG')?.value || '';
 
-            prixOG = calculateLensPrice(matiereOG, indiceOG, traitementsOG, this.allGlassParameters || undefined);
+            prixOG = calculateLensPrice(matiereOG, indiceOG, traitementsOG, this.allGlassParameters || undefined, marqueOG);
         } else {
             prixOG = prixOD;
         }

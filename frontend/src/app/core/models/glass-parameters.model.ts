@@ -16,6 +16,7 @@ export interface GlassMaterial {
 export interface GlassBrand {
   id: string;
   name: string;
+  margeDefaut?: number;
 }
 
 export interface GlassTreatment {

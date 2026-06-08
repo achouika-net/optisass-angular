@@ -1,8 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef, Inject } from '@angular/core';
+﻿import { Component, OnInit, ChangeDetectorRef, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { API_URL } from '../../../../config/api.config';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
@@ -14,6 +14,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { GlassParametersService } from '../../../client-management/services/glass-parameters.service';
 
 @Component({
@@ -34,6 +35,7 @@ import { GlassParametersService } from '../../../client-management/services/glas
     MatDialogModule,
     MatSelectModule,
     MatProgressSpinnerModule,
+    MatTooltipModule
   ],
   templateUrl: './glass-settings.component.html',
   styleUrls: ['./glass-settings.component.scss']
@@ -42,7 +44,7 @@ export class GlassSettingsComponent implements OnInit {
   brands: any[] = [];
   materials: any[] = [];
   treatments: any[] = [];
-  
+
   loading = false;
   private apiUrl = `${API_URL}/glass-parameters`;
 
@@ -59,11 +61,9 @@ export class GlassSettingsComponent implements OnInit {
   }
 
   loadAll() {
-    console.log('🔄 Loading glass parameters...');
     this.loading = true;
     this.service.getAll(true).subscribe({
       next: (data) => {
-        console.log('✅ Glass parameters loaded:', data);
         this.brands = data.brands;
         this.materials = data.materials;
         this.treatments = data.treatments;
@@ -71,23 +71,77 @@ export class GlassSettingsComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('❌ Error loading glass parameters:', err);
-        this.snackBar.open('Erreur lors du chargement des paramètres', 'OK', { duration: 3000 });
+        console.error('Error loading glass parameters:', err);
+        this.snackBar.open('Erreur lors du chargement des parametres', 'OK', { duration: 3000 });
         this.loading = false;
         this.cdr.detectChanges();
       }
     });
   }
 
+  // --- Marge <-> Coefficient helpers ---
+  // coef = 1 / (1 - marge/100)
+  // marge = (1 - 1/coef) * 100
+
+  onMargeInput(margeEl: HTMLInputElement, coefEl: HTMLInputElement) {
+    const marge = parseFloat(margeEl.value);
+    if (!isNaN(marge) && marge >= 0 && marge < 100) {
+      coefEl.value = (1 / (1 - marge / 100)).toFixed(4);
+    } else {
+      coefEl.value = '';
+    }
+  }
+
+  onCoefInput(coefEl: HTMLInputElement, margeEl: HTMLInputElement) {
+    const coef = parseFloat(coefEl.value);
+    if (!isNaN(coef) && coef > 1) {
+      margeEl.value = ((1 - 1 / coef) * 100).toFixed(2);
+    } else if (!isNaN(coef) && coef === 1) {
+      margeEl.value = '0';
+    } else {
+      margeEl.value = '';
+    }
+  }
+
+  margeToCoef(marge: number): string {
+    if (!marge || marge <= 0) return '1.0000';
+    if (marge >= 100) return '---';
+    return (1 / (1 - marge / 100)).toFixed(4);
+  }
+
   // --- Brands ---
   addBrand() {
     const name = prompt('Nom de la marque :');
-    if (name) {
-      this.http.post(`${this.apiUrl}/brands`, { name }).subscribe(() => {
-        this.snackBar.open('Marque ajoutée', 'OK', { duration: 2000 });
+    if (!name) return;
+
+    const margeStr = prompt('Marge beneficiaire par defaut (%) :', '30');
+    const margeDefaut = parseFloat(margeStr ?? '30');
+
+    this.http.post(`${this.apiUrl}/brands`, {
+      name,
+      margeDefaut: isNaN(margeDefaut) ? 30 : margeDefaut
+    }).subscribe({
+      next: () => {
+        this.snackBar.open('Marque ajoutee', 'OK', { duration: 2000 });
         this.loadAll();
-      });
+      },
+      error: () => this.snackBar.open('Erreur lors de la creation', 'OK', { duration: 3000 })
+    });
+  }
+
+  updateBrandMarge(id: string, margeInput: string) {
+    const marge = parseFloat(margeInput);
+    if (isNaN(marge) || marge < 0 || marge >= 100) {
+      this.snackBar.open('La marge doit etre entre 0 et 99%', 'OK', { duration: 3000 });
+      return;
     }
+    this.http.patch(`${this.apiUrl}/brands/${id}`, { margeDefaut: marge }).subscribe({
+      next: () => {
+        this.snackBar.open('Marge mise a jour et prix recalcules', 'OK', { duration: 2000 });
+        this.loadAll();
+      },
+      error: () => this.snackBar.open('Erreur lors de la mise a jour', 'OK', { duration: 3000 })
+    });
   }
 
   deleteBrand(id: string) {
@@ -100,7 +154,7 @@ export class GlassSettingsComponent implements OnInit {
 
   // --- Materials ---
   addMaterial() {
-    const name = prompt('Nom de la matière :');
+    const name = prompt('Nom de la matiere :');
     if (name) {
       this.http.post(`${this.apiUrl}/materials`, { name }).subscribe(() => {
         this.loadAll();
@@ -109,7 +163,7 @@ export class GlassSettingsComponent implements OnInit {
   }
 
   deleteMaterial(id: string) {
-    if (confirm('Supprimer cette matière supprimera tous les indices associés. Continuer ?')) {
+    if (confirm('Supprimer cette matiere supprimera tous les indices associes. Continuer ?')) {
       this.http.delete(`${this.apiUrl}/materials/${id}`).subscribe(() => {
         this.loadAll();
       });
@@ -118,10 +172,9 @@ export class GlassSettingsComponent implements OnInit {
 
   // --- Indices ---
   addIndex(materialId: string) {
-    const value = prompt('Valeur de l\'indice (ex: 1.50) :');
+    const value = prompt("Valeur de l'indice (ex: 1.50) :");
     const priceStr = prompt('Prix de base (MAD) :', '0');
     const price = parseFloat(priceStr || '0');
-    
     if (value) {
       this.http.post(`${this.apiUrl}/indices`, { materialId, value, label: value, price }).subscribe(() => {
         this.loadAll();
@@ -133,7 +186,7 @@ export class GlassSettingsComponent implements OnInit {
     const price = parseFloat(newPrice);
     if (!isNaN(price)) {
       this.http.patch(`${this.apiUrl}/indices/${id}`, { price }).subscribe(() => {
-        this.snackBar.open('Prix mis à jour', 'OK', { duration: 2000 });
+        this.snackBar.open('Prix mis a jour', 'OK', { duration: 2000 });
       });
     }
   }
@@ -151,7 +204,6 @@ export class GlassSettingsComponent implements OnInit {
     const name = prompt('Nom du traitement :');
     const priceStr = prompt('Prix (MAD) :', '0');
     const price = parseFloat(priceStr || '0');
-    
     if (name) {
       this.http.post(`${this.apiUrl}/treatments`, { name, price }).subscribe(() => {
         this.loadAll();
@@ -163,7 +215,7 @@ export class GlassSettingsComponent implements OnInit {
     const price = parseFloat(newPrice);
     if (!isNaN(price)) {
       this.http.patch(`${this.apiUrl}/treatments/${id}`, { price }).subscribe(() => {
-        this.snackBar.open('Prix mis à jour', 'OK', { duration: 2000 });
+        this.snackBar.open('Prix mis a jour', 'OK', { duration: 2000 });
       });
     }
   }
@@ -177,9 +229,9 @@ export class GlassSettingsComponent implements OnInit {
   }
 
   runSeed() {
-    if (confirm('Voulez-vous charger les données par défaut ? Cela ajoutera les marques et verres standards.')) {
+    if (confirm('Voulez-vous charger les donnees par defaut ? Cela ajoutera les marques et verres standards.')) {
       this.http.get(`${this.apiUrl}/seed`).subscribe(() => {
-        this.snackBar.open('Données chargées avec succès', 'OK', { duration: 3000 });
+        this.snackBar.open('Donnees chargees avec succes', 'OK', { duration: 3000 });
         this.loadAll();
       });
     }
@@ -189,22 +241,19 @@ export class GlassSettingsComponent implements OnInit {
   adjustStock(type: 'index' | 'treatment', id: string, label: string) {
     const qtyStr = prompt(`Ajuster le stock pour "${label}" (ex: +10 ou -5) :`);
     if (!qtyStr) return;
-    
     const delta = parseFloat(qtyStr);
     if (isNaN(delta)) {
-      this.snackBar.open('Quantité invalide', 'OK', { duration: 2000 });
+      this.snackBar.open('Quantite invalide', 'OK', { duration: 2000 });
       return;
     }
-
-    const motif = prompt('Motif de l\'ajustement (optionnel) :', 'Ajustement manuel inventory');
-    
+    const motif = prompt("Motif de l'ajustement (optionnel) :", 'Ajustement manuel inventory');
     const path = type === 'index' ? 'indices' : 'treatments';
     this.http.post(`${this.apiUrl}/${path}/${id}/stock`, { delta, motif }).subscribe({
       next: () => {
-        this.snackBar.open('Stock mis à jour', 'OK', { duration: 2000 });
+        this.snackBar.open('Stock mis a jour', 'OK', { duration: 2000 });
         this.loadAll();
       },
-      error: () => this.snackBar.open('Erreur lors de la mise à jour', 'OK', { duration: 3000 })
+      error: () => this.snackBar.open('Erreur lors de la mise a jour', 'OK', { duration: 3000 })
     });
   }
 
@@ -216,7 +265,7 @@ export class GlassSettingsComponent implements OnInit {
           data: { label, history }
         });
       },
-      error: () => this.snackBar.open('Erreur lors du chargement de l\'historique', 'OK', { duration: 3000 })
+      error: () => this.snackBar.open("Erreur lors du chargement de l'historique", 'OK', { duration: 3000 })
     });
   }
 }
@@ -240,7 +289,7 @@ export class GlassSettingsComponent implements OnInit {
           </td>
         </ng-container>
         <ng-container matColumnDef="qty">
-          <th mat-header-cell *matHeaderCellDef>Qté</th>
+          <th mat-header-cell *matHeaderCellDef>Qte</th>
           <td mat-cell *matCellDef="let m" class="font-bold">
             {{ m.quantite > 0 ? '+' : '' }}{{ m.quantite }}
           </td>
@@ -253,7 +302,7 @@ export class GlassSettingsComponent implements OnInit {
         <tr mat-row *matRowDef="let row; columns: ['date', 'type', 'qty', 'motif']"></tr>
       </table>
       <div *ngIf="data.history.length === 0" class="p-8 text-center text-slate-400">
-        Aucun mouvement trouvé.
+        Aucun mouvement trouve.
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">

@@ -294,6 +294,7 @@ model MouvementStock {
   bonLivraisonId        String?
   glassIndexId          String?
   glassTreatmentId      String?
+  verreMarqueId         String?
   bonLivraison          BonLivraison?       @relation(fields: [bonLivraisonId], references: [id])
   entrepotDestination   Entrepot?           @relation("EntrepotDestination", fields: [entrepotDestinationId], references: [id])
   entrepotSource        Entrepot?           @relation("EntrepotSource", fields: [entrepotSourceId], references: [id])
@@ -301,6 +302,7 @@ model MouvementStock {
   facture               Facture?            @relation(fields: [factureId], references: [id])
   glassIndex            GlassIndex?         @relation(fields: [glassIndexId], references: [id])
   glassTreatment        GlassTreatment?     @relation(fields: [glassTreatmentId], references: [id])
+  verreMarque           VerreMarque?         @relation(fields: [verreMarqueId], references: [id])
   produit               Product?            @relation(fields: [produitId], references: [id], onDelete: Cascade)
   user                  User?               @relation(fields: [userId], references: [id])
 
@@ -317,6 +319,7 @@ model MouvementStock {
   @@index([bonLivraisonId])
   @@index([glassIndexId])
   @@index([glassTreatmentId])
+  @@index([verreMarqueId])
 }
 
 model User {
@@ -399,6 +402,7 @@ model Fournisseur {
   rib                String?
   banque             String?
   conditionsPaiement String?
+  margeDefaut        Float?           // Marge bénéficiaire par défaut en % (ex: 45 = 45%)
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   contacts           Json?
@@ -407,6 +411,7 @@ model Fournisseur {
   bonsLivraison      BonLivraison[]
   depenses           Depense[]
   factures           FactureFournisseur[]
+
 }
 
 model Convention {
@@ -830,10 +835,12 @@ model CompanySettings {
 }
 
 model GlassBrand {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String        @id @default(uuid())
+  name         String        @unique
+  margeDefaut  Float         @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  verreMarques VerreMarque[]
 }
 
 model GlassMaterial {
@@ -855,6 +862,7 @@ model GlassIndex {
   quantite        Float            @default(0)
   material        GlassMaterial    @relation(fields: [materialId], references: [id], onDelete: Cascade)
   mouvementsStock MouvementStock[]
+  verreMarques    VerreMarque[]
 
   @@unique([materialId, value])
 }
@@ -960,8 +968,31 @@ model TransactionBancaire {
   statutRapprochement String         @default("NON_RAPPROCHE") // NON_RAPPROCHE, RAPPROCHE
   typeTransaction     String? // AGIOS, FRAIS, VIREMENT, CHEQUE, etc.
   releveBancaire      ReleveBancaire @relation(fields: [releveBancaireId], references: [id], onDelete: Cascade)
-  paiements           Paiement[] // relation inverse ajoutée
-  depenses            Depense[] // relation inverse ajoutée
+  paiements           Paiement[] // relation inverse ajoutÃ©e
+  depenses            Depense[] // relation inverse ajoutÃ©e
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+}
+
+model VerreMarque {
+  id              String          @id @default(uuid())
+  glassIndexId    String          // Lien vers GlassIndex (matière + indice)
+  brandId         String          // Lien vers GlassBrand (marque)
+  epaisseur       Float?          // Épaisseur en mm (ex: 1.8, 2.1, 3.0)
+  prixAchat       Float           @default(0)   // Prix d'achat de ce verre pour cette marque
+  prixVente       Float?          // Prix de vente conseillé (surcharge optionnelle)
+  reference       String?         // Référence produit
+  quantite        Float           @default(0)   // Stock disponible
+  actif           Boolean         @default(true)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  glassIndex      GlassIndex      @relation(fields: [glassIndexId], references: [id], onDelete: Cascade)
+  brand           GlassBrand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  mouvementsStock MouvementStock[]
+
+  @@unique([glassIndexId, brandId])
+  @@index([brandId])
+  @@index([glassIndexId])
 }
