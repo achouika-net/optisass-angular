@@ -54,7 +54,7 @@ export class BanqueController {
       throw new Error('Format non supporté');
     }
     
-    return this.banqueService.importReleve(parsedResult, compteId);
+    return this.banqueService.importReleve(parsedResult, compteId, tenantId);
   }
 
   @Post('releves/debug-pdf')

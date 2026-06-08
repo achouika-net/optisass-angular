@@ -249,7 +249,7 @@ export class BanqueService {
           date: dateTransaction,
           montant: ech.montant,
           categorie: ech.factureFournisseurId ? 'Facture Fournisseur' : 'Bon de Livraison',
-          description: `${ech.type} N� ${ech.reference || ''}`.trim(),
+          description: `${ech.type} N° ${ech.reference || ''}`.trim(),
           modePaiement: ech.type,
           statut: 'PAYE',
           centreId: centreId,
@@ -549,7 +549,7 @@ export class BanqueService {
     });
 
     // Depenses sortantes en attente de rapprochement bancaire
-    const cashModes = ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Esp�ces', 'especes', 'Prelevement', 'PRELEVEMENT', 'Caisse', 'CAISSE'];
+    const cashModes = ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'especes', 'Prelevement', 'PRELEVEMENT', 'Caisse', 'CAISSE'];
     const directDepenses = await this.prisma.depense.findMany({
       where: {
         statut: { in: ['REMIS_EN_BANQUE', 'A_PAYER'] },
@@ -565,7 +565,7 @@ export class BanqueService {
       where: {
         statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] },
         type: {
-          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Esp�ces', 'especes', 'ESPCES', 'Caisse', 'CAISSE']
+          notIn: ['ESPECES', 'Liquide', 'LIQUIDE', 'CASH', 'Especes', 'Espèces', 'especes', 'ESPCES', 'Caisse', 'CAISSE']
         }
       },
       include: {

@@ -175,11 +175,11 @@
                                 </div>
                             </div>
 
-                            <!-- D�tails TVA Section -->
+                            <!-- Détails TVA Section -->
                             <div class="mt-6 border border-gray-100 rounded-lg overflow-hidden">
                                 <h3 class="text-base font-extrabold text-gray-800 bg-gray-50 p-3 m-0 flex items-center gap-1 border-b border-gray-100">
                                     <mat-icon class="text-teal-500">list_alt</mat-icon>
-                                    D�tails des op�rations (TVA Collect�e)
+                                    Détails des opérations (TVA Collectée)
                                 </h3>
                                 <div class="max-h-60 overflow-y-auto">
                                 <table class="w-full text-left text-sm text-gray-600">
@@ -201,7 +201,7 @@
                                             <td class="px-4 py-2 text-right font-semibold text-teal-700">{{ d.montantTVA | number:"1.2-2" }} MAD ({{ d.taux }}%)</td>
                                         </tr>
                                         <tr *ngIf="!tvaBilanData().sales.details?.length">
-                                            <td colspan="5" class="px-4 py-4 text-center text-gray-400 font-medium">Aucun encaissement rapproch� sur cette p�riode</td>
+                                            <td colspan="5" class="px-4 py-4 text-center text-gray-400 font-medium">Aucun encaissement rapproché sur cette période</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -211,7 +211,7 @@
                             <div class="mt-6 border border-gray-100 rounded-lg overflow-hidden">
                                 <h3 class="text-base font-extrabold text-gray-800 bg-gray-50 p-3 m-0 flex items-center gap-1 border-b border-gray-100">
                                     <mat-icon class="text-rose-500">receipt_long</mat-icon>
-                                    D�tails des op�rations (TVA D�ductible)
+                                    Détails des opérations (TVA Déductible)
                                 </h3>
                                 <div class="max-h-60 overflow-y-auto">
                                 <table class="w-full text-left text-sm text-gray-600">
@@ -233,7 +233,7 @@
                                             <td class="px-4 py-2 text-right font-semibold text-rose-700">{{ d.montantTVA | number:"1.2-2" }} MAD ({{ d.taux }}%)</td>
                                         </tr>
                                         <tr *ngIf="!tvaBilanData().expenses.details?.length">
-                                            <td colspan="5" class="px-4 py-4 text-center text-gray-400 font-medium">Aucune charge rapproch�e sur cette p�riode</td>
+                                            <td colspan="5" class="px-4 py-4 text-center text-gray-400 font-medium">Aucune charge rapprochée sur cette période</td>
                                         </tr>
                                     </tbody>
                                 </table>

@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ExportSageDto } from './dto/export-sage.dto';
 
@@ -15,11 +15,11 @@ export class AccountingService {
   private readonly CONFIG = {
     RECEIVABLE_ACCOUNT: '3421', // Clients
     SALES_REVENUE_ACCOUNT: '7111', // Ventes
-    SALES_TAX_ACCOUNT: '4455', // TVA CollectÃ©e
+    SALES_TAX_ACCOUNT: '4455', // TVA Collectée
     CASH_ACCOUNT: '5161', // Caisse
     PAYABLE_ACCOUNT: '4411', // Fournisseurs
     EXPENSE_ACCOUNT: '6111', // Achats
-    INPUT_TAX_ACCOUNT: '3455', // TVA DÃ©ductible
+    INPUT_TAX_ACCOUNT: '3455', // TVA Déductible
   };
 
   private formatDateDDMMYY(date: Date | string): string {
@@ -90,7 +90,7 @@ export class AccountingService {
       this.prisma.depense.findMany({
         where: {
           date: { gte: start, lte: end },
-          statut: { in: ['VALIDEE', 'VALIDÃ‰', 'PAYEE', 'PAYE'] },
+          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
           centreId: centreId, // BUG-007: Mandatory filter
         },
         include: { fournisseur: true },
@@ -117,7 +117,7 @@ export class AccountingService {
       );
       if (tva > 0) {
         lines.push(
-          `${lineNumber++}\t${dateStr}\t${this.CONFIG.SALES_TAX_ACCOUNT}\t${ref}\tTVA CollectÃ©e\tC\t${tva.toFixed(2)}`,
+          `${lineNumber++}\t${dateStr}\t${this.CONFIG.SALES_TAX_ACCOUNT}\t${ref}\tTVA Collectée\tC\t${tva.toFixed(2)}`,
         );
       }
     });
@@ -149,7 +149,7 @@ export class AccountingService {
       );
       if (tva > 0) {
         lines.push(
-          `${lineNumber++}\t${dateStr}\t${this.CONFIG.INPUT_TAX_ACCOUNT}\t${ref}\tTVA DÃ©ductible\tD\t${tva.toFixed(2)}`,
+          `${lineNumber++}\t${dateStr}\t${this.CONFIG.INPUT_TAX_ACCOUNT}\t${ref}\tTVA Déductible\tD\t${tva.toFixed(2)}`,
         );
       }
       lines.push(
@@ -235,7 +235,7 @@ export class AccountingService {
           },
           select: { quantiteActuelle: true, prixAchatHT: true },
         }),
-        // 6. Bank fees (agios, frais, prÃ©lÃ¨vements)
+        // 6. Bank fees (agios, frais, prélèvements)
         this.prisma.transactionBancaire.findMany({
           where: {
             dateTransaction: { lte: end },
@@ -368,7 +368,7 @@ export class AccountingService {
         .font('Helvetica')
         .fillColor('#666')
         .text(
-          `PÃ©riode : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`,
+          `Période : ${this.formatDateDisplay(start)} au ${this.formatDateDisplay(end)}`,
           { align: 'center' },
         );
       doc.moveDown(2);
@@ -405,7 +405,7 @@ export class AccountingService {
       // --- ACTIF CONTENT ---
       const actifItems = [
         {
-          label: 'ACTIF IMMOBILISÃ‰',
+          label: 'ACTIF IMMOBILISÉ',
           value: balance.actif.immobilisations,
           bold: true,
           bg: '#f1f5f9',
@@ -420,14 +420,14 @@ export class AccountingService {
           indent: true,
         },
         {
-          label: '  CrÃ©ances clients',
+          label: '  Créances clients',
           value: balance.actif.creances,
           indent: true,
         },
-        { label: '  Autres crÃ©ances', value: 0, indent: true },
+        { label: '  Autres créances', value: 0, indent: true },
         { label: '', value: null, spacer: true },
         {
-          label: 'TRÃ‰SORERIE - ACTIF',
+          label: 'TRÉSORERIE - ACTIF',
           value: balance.actif.tresorerie,
           bold: true,
           bg: '#f1f5f9',
@@ -596,7 +596,7 @@ export class AccountingService {
         .fontSize(8)
         .fillColor('#94a3b8')
         .text(
-          `GÃ©nÃ©rÃ© le ${new Date().toLocaleDateString('fr-FR')}`,
+          `Généré le ${new Date().toLocaleDateString('fr-FR')}`,
           margin,
           780,
           { align: 'center' },
@@ -612,7 +612,7 @@ export class AccountingService {
 
   /**
    * Generates a CSV Trial Balance (Balance des Comptes)
-   * Format: Compte;IntitulÃ©;DÃ©bit;CrÃ©dit;Solde
+   * Format: Compte;Intitulé;Débit;Crédit;Solde
    */
   async generateTrialBalanceCsv(dto: ExportSageDto): Promise<string> {
     this.logger.log(`Generating Trial Balance CSV: ${JSON.stringify(dto)}`);
@@ -646,7 +646,7 @@ export class AccountingService {
       this.prisma.depense.findMany({
         where: {
           date: { lte: end },
-          statut: { in: ['VALIDEE', 'VALIDÃ‰', 'PAYEE', 'PAYE'] },
+          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
           centreId: cid,
         },
         select: { montant: true },
@@ -692,7 +692,7 @@ export class AccountingService {
       },
       {
         code: this.CONFIG.CASH_ACCOUNT,
-        label: 'TrÃ©sorerie (Caisse/Banque)',
+        label: 'Trésorerie (Caisse/Banque)',
         debit: totalEncaissements,
         credit: totalTTCAchats,
       },
@@ -706,7 +706,7 @@ export class AccountingService {
       }, // Assuming paid
       {
         code: this.CONFIG.SALES_TAX_ACCOUNT,
-        label: 'Ã‰tat - TVA FacturÃ©e',
+        label: 'État - TVA Facturée',
         debit: 0,
         credit: totalTVAVentes,
       },
@@ -720,7 +720,7 @@ export class AccountingService {
       },
       {
         code: this.CONFIG.INPUT_TAX_ACCOUNT,
-        label: 'Ã‰tat - TVA RÃ©cupÃ©rable',
+        label: 'État - TVA Récupérable',
         debit: totalTVAAchats,
         credit: 0,
       },
@@ -735,7 +735,7 @@ export class AccountingService {
     ];
 
     // 4. Generate CSV with BOM for Excel UTF-8 support
-    const header = '\uFEFFCompte;IntitulÃ©;DÃ©bit;CrÃ©dit;Solde\n';
+    const header = '\uFEFFCompte;Intitulé;Débit;Crédit;Solde\n';
 
     const formatCsvNumber = (num: number) => num.toFixed(2).replace('.', ',');
 
@@ -782,7 +782,7 @@ export class AccountingService {
       this.prisma.depense.findMany({
         where: {
           date: { gte: start, lte: end },
-          statut: { in: ['VALIDEE', 'VALIDÃ‰', 'PAYEE', 'PAYE'] },
+          statut: { in: ['VALIDEE', 'VALIDÉ', 'PAYEE', 'PAYE'] },
           centreId: cid,
         },
         include: { fournisseur: true, factureFournisseur: true },
@@ -843,7 +843,7 @@ export class AccountingService {
       doc
         .fontSize(10)
         .font('Helvetica')
-        .text(`PÃ©riode du ${formatDate(start)} au ${formatDate(end)}`, {
+        .text(`Période du ${formatDate(start)} au ${formatDate(end)}`, {
           align: 'center',
         });
       doc.moveDown(1.5);
@@ -959,7 +959,7 @@ export class AccountingService {
         'LIBELLE',
         'Client',
         'Date Fac',
-        'NÂ° Facture',
+        'N° Facture',
         'Montant TTC',
         'Montant HT',
         'Taux TVA',
@@ -984,7 +984,7 @@ export class AccountingService {
         // Stamp Duty (Droits de Timbre) - 0.25% on Cash Payments
         // LF 2026 maintains standard practice: 0.25% on cash transactions
         let timbre = 0;
-        if (p.mode === 'ESPECES' || p.mode === 'ESPÃˆCES' || p.mode === 'CASH') {
+        if (p.mode === 'ESPECES' || p.mode === 'ESPÈCES' || p.mode === 'CASH') {
           timbre = ttc * 0.0025;
         }
 
@@ -1030,7 +1030,7 @@ export class AccountingService {
 
       // --- DEPENSES ---
       const purchaseHeaders = [
-        'Facture nÂ°',
+        'Facture n°',
         'Date Fac',
         'I.F',
         'Fournisseur',
@@ -1040,7 +1040,7 @@ export class AccountingService {
         'Taux',
         'TVA',
         'Mode',
-        'PiÃ¨ce',
+        'Pièce',
         'Date Paie',
       ];
       const purchaseWidths = [60, 60, 60, 100, 120, 70, 70, 40, 60, 60, 60, 60];
@@ -1098,7 +1098,7 @@ export class AccountingService {
         .fontSize(16)
         .font('Helvetica-Bold')
         .fillColor('#000')
-        .text('RÃ‰CAPITULATIF', 30, 40, { align: 'center', width: 780 });
+        .text('RÉCAPITULATIF', 30, 40, { align: 'center', width: 780 });
       doc.moveDown(2);
 
       // AGGREGATION LOGIC

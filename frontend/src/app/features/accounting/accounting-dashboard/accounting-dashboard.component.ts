@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormControl } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -13,7 +13,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
-import { finalize } from 'rxjs/operators';
+import { finalize, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { AccountingService } from '../services/accounting.service';
 import { Store } from '@ngrx/store';
 import { UserCurrentCentreSelector, UserCentresSelector } from '../../../core/store/auth/auth.selectors';
@@ -42,16 +43,17 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
     templateUrl: './accounting-dashboard.component.html',
     styleUrls: ['./accounting-dashboard.component.scss']
 })
-export class AccountingDashboardComponent implements OnInit {
+export class AccountingDashboardComponent implements OnInit, OnDestroy {
     tvaBilanData = signal<any>(null);
     Math = Math; // Expose Math to template
+    private destroy$ = new Subject<void>();
 
     loadTvaBilan(): void {
         const { startDate, endDate, centreId } = this.exportForm.value;
         if (!startDate || !endDate) return;
         const start = format(startDate, 'yyyy-MM-dd');
         const end = format(endDate, 'yyyy-MM-dd');
-        
+
         this.accountingService.getTvaBilan(start, end, centreId).subscribe({
             next: (res) => {
                 this.tvaBilanData.set(res);
@@ -69,7 +71,7 @@ export class AccountingDashboardComponent implements OnInit {
 
         this.accountingService.exportTvaPdf(start, end, centreId)
             .pipe(finalize(() => {
-                this.isLoading.set(true);
+                this.isLoading.set(false);
                 this.cdr.detectChanges();
             }))
             .subscribe({
@@ -97,7 +99,7 @@ export class AccountingDashboardComponent implements OnInit {
 
         this.accountingService.exportTvaCsv(start, end, centreId)
             .pipe(finalize(() => {
-                this.isLoading.set(true);
+                this.isLoading.set(false); // BUG FIX: was incorrectly set to true
                 this.cdr.detectChanges();
             }))
             .subscribe({
@@ -137,14 +139,42 @@ export class AccountingDashboardComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        // BUG FIX: Reactively sync centreId with the store's currentCenter.
+        // In the deployed version, the currentCenter can be null on first load
+        // (e.g. after auto-creating a bank account from a releve bancaire import)
+        // causing the filter to be empty and returning ALL centers' data.
+        this.store.select(UserCurrentCentreSelector)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(centre => {
+                const currentFormCentreId = this.exportForm.get('centreId')?.value;
+                const newCentreId = (centre as any)?.id || '';
+                // Auto-set only when the form control is still empty (not manually changed by user)
+                if (!currentFormCentreId && newCentreId) {
+                    this.exportForm.patchValue({ centreId: newCentreId }, { emitEvent: false });
+                    this.loadTvaBilan(); // Reload with correct centre
+                }
+            });
+
+        // Synchronous init from signal (handles case where store is already hydrated)
         const centre = this.currentCentre() as any;
         if (centre?.id) {
-            this.exportForm.patchValue({ centreId: centre.id });
+            this.exportForm.patchValue({ centreId: centre.id }, { emitEvent: false });
         }
+
+        // Load initial data
         this.loadTvaBilan();
-        this.exportForm.valueChanges.subscribe(() => {
-            this.loadTvaBilan();
-        });
+
+        // React to any form filter changes
+        this.exportForm.valueChanges
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(() => {
+                this.loadTvaBilan();
+            });
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
     }
 
     getCentreId(c: any): string {
@@ -182,7 +212,7 @@ export class AccountingDashboardComponent implements OnInit {
                 },
                 error: (err) => {
                     console.error('Export failed', err);
-                    this.snackBar.open('Erreur lors de l\'export', 'Fermer', { duration: 5000 });
+                    this.snackBar.open("Erreur lors de l'export", 'Fermer', { duration: 5000 });
                 }
             });
     }
