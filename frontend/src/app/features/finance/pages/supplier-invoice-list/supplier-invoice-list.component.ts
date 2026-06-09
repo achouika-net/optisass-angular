@@ -217,6 +217,8 @@ export class SupplierInvoiceListComponent implements OnInit {
   }
 
   public getPaymentType(element: SupplierInvoice): string {
+    const statut = (element as any).factureFournisseur?.statut || (element as any).statut;
+    if (statut === 'A_PAYER') return 'Non R�gl�';
     if (!element.echeances || element.echeances.length === 0) return '-';
     const types = Array.from(new Set(element.echeances.map(e => e.type)));
     const mapping: { [key: string]: string } = {
@@ -236,6 +238,18 @@ export class SupplierInvoiceListComponent implements OnInit {
       return mapping[type] || type;
     }
     return 'MIXTE';
+  }
+
+  public formatStatut(statut: string): string {
+    const mapping: { [key: string]: string } = {
+      'PAYEE': 'Pay�',
+      'A_PAYER': 'A Payer',
+      'EN_ATTENTE': 'En attente',
+      'PARTIELLE': 'Partiel',
+      'VALIDEE': 'Valid�e',
+      'ANNULEE': 'Annul�e',
+    };
+    return mapping[statut] || statut;
   }
 
   public getPieceCount(element: any): number {

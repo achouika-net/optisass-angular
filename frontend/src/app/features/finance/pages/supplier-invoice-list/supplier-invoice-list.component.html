@@ -60,7 +60,7 @@
                 </td>
                 <td>{{ formatType($any(row).categorieBL || row.type) }}</td>
                 <td>{{ getPaymentType(row) }}</td>
-                <td>{{ $any(row).factureFournisseur?.statut || row.statut }}</td>
+                <td>{{ formatStatut($any(row).factureFournisseur?.statut || row.statut) }}</td>
                 <td class="text-right font-bold">{{ row.montantTTC | number:'1.2-2' }}</td>
             </tr>
         </tbody>
