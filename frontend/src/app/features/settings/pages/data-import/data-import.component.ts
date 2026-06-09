@@ -717,7 +717,7 @@ export class DataImportComponent implements OnInit {
             code: ['code', 'code fournisseur', 'supplier code', 'vendor code', 'ref fournisseur'],
             contact: ['contact', 'personne contact', 'contact person', 'interlocuteur'],
             rib: ['rib', 'iban', 'bank account', 'compte bancaire'],
-            banque: ['banque', 'bank', 'etablissement bancaire'],
+            banque: ['banque', 'bank', 'etablissement bancaire', 'etablissement', 'banque paiement'],
             conditionsPaiement: ['conditions paiement', 'payment terms', 'delai paiement', 'modalites paiement'],
             cnss: ['cnss', 'social security', 'securite sociale'],
             rc: ['rc', 'registre commerce', 'trade register'],
