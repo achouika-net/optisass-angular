@@ -137,7 +137,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     ];
     filteredTypes!: Observable<string[]>;
     invoiceStatus = ['EN_ATTENTE', 'VALIDEE', 'PARTIELLE', 'PAYEE', 'ANNULEE'];
-    paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE', 'PRISE_EN_CHARGE'];
+    paymentMethods = ['ESPECES', 'CHEQUE', 'LCN', 'VIREMENT', 'CARTE', 'PRISE_EN_CHARGE', 'AVOIR', 'MIXTE', 'AUTRE'];
     echeanceStatus = ['EN_ATTENTE', 'DEPOSE', 'ENCAISSE', 'REJETE', 'ANNULE'];
 
     blCategories = [

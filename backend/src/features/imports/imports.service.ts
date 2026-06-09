@@ -22,6 +22,19 @@ export class ImportsService {
     return sn;
   }
 
+  private normalizePaymentType(type: any): string {
+    if (!type) return 'ESPECES';
+    const s = String(type).trim().toUpperCase();
+    if (s.includes('ESPECE') || s.includes('LIQUIDE') || s.includes('CASH') || s === 'LQR') return 'ESPECES';
+    if (s.includes('CHEQUE') || s.includes('CH�QUE')) return 'CHEQUE';
+    if (s.includes('EFFET') || s === 'LCN') return 'LCN';
+    if (s.includes('VIREMENT') || s.includes('PRELEVEMENT') || s.includes('PR�L�VEMENT')) return 'VIREMENT';
+    if (s.includes('CARTE')) return 'CARTE';
+    if (s.includes('AVOIR')) return 'PRISE_EN_CHARGE';
+    if (s.includes('GESTE')) return 'PRISE_EN_CHARGE';
+    return s;
+  }
+
   private logToFile(msg: string) {
     const fs = require('fs');
     const timestamp = new Date().toISOString();
@@ -435,13 +448,17 @@ export class ImportsService {
 
   private parseAmount(v: any): number {
     if (v === undefined || v === null || v === '') return 0;
-    if (typeof v === 'number') return v;
-    const s = String(v)
-      .replace(/\s/g, '')
-      .replace(',', '.')
-      .replace(/[^0-9.-]/g, '');
-    const val = parseFloat(s);
-    return isNaN(val) ? 0 : val;
+    let val = 0;
+    if (typeof v === 'number') {
+      val = v;
+    } else {
+      const s = String(v)
+        .replace(/\s/g, '')
+        .replace(',', '.')
+        .replace(/[^0-9.-]/g, '');
+      val = parseFloat(s);
+    }
+    return isNaN(val) ? 0 : Math.round(val * 100) / 100;
   }
 
   private parseDate(v: any): Date | null {
@@ -2322,13 +2339,13 @@ export class ImportsService {
               data: {
                 montant: montantTTC,
                 dateEcheance: dateEmission,
-                type: row[mapping.modePaiement] || 'ESPECES',
+                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
                 statut:
-                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
                     ? 'ENCAISSE'
                     : 'EN_ATTENTE',
                 dateEncaissement:
-                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
                     ? dateEmission
                     : null,
               },
@@ -2342,7 +2359,7 @@ export class ImportsService {
                   referenceInterne || supplier.nom,
                 ),
                 description: `Achat sans facture (Fournisseur: ${supplier.nom})`,
-                modePaiement: row[mapping.modePaiement] || 'ESPECES',
+                modePaiement: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
                 statut: 'A_PAYER',
                 fournisseurId: supplier.id,
                 centreId: (centreId as any) || null,
@@ -2519,7 +2536,7 @@ export class ImportsService {
             });
 
             // Only mark as paid if payment mode was EXPLICITLY provided in the import file
-            const paymentMode = row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim().toUpperCase() : null;
+            const paymentMode = row[mapping.modePaiement] ? this.normalizePaymentType(row[mapping.modePaiement]) : null;
 
             await this.prisma.echeancePaiement.create({
               data: {
@@ -2559,13 +2576,13 @@ export class ImportsService {
                 factureFournisseurId: record.id,
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
-                type: row[mapping.modePaiement] || 'ESPECES',
+                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
                 statut:
-                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
                     ? 'ENCAISSE'
                     : 'EN_ATTENTE',
                 dateEncaissement:
-                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
                     ? dateEcheance || dateEmission
                     : null,
               },
@@ -2624,6 +2641,7 @@ export class ImportsService {
         const montant = this.parseAmount(
           row[mapping.montant] || row[mapping.montantTTC],
         );
+        const banque = row[mapping.banque] ? String(row[mapping.banque]).trim() : null;
 
         if (montant === 0) continue;
 
@@ -2710,6 +2728,47 @@ export class ImportsService {
           }
         }
 
+        // Robust fallback matching for invoice numbers
+        if (numeroFacture && numeroFacture.length > 0 && !facture) {
+          const cleanNum = (s) => String(s).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          const cleanedImport = cleanNum(numeroFacture);
+          if (cleanedImport.length >= 3) {
+            const supplierInvoices = await this.prisma.factureFournisseur.findMany({
+              where: { fournisseurId: supplier.id }
+            });
+            // 1. Exact cleaned match
+            facture = supplierInvoices.find(inv => cleanNum(inv.numeroFacture) === cleanedImport || (inv.referenceInterne && cleanNum(inv.referenceInterne) === cleanedImport));
+            
+            // 2. Suffix / substring match
+            if (!facture) {
+              facture = supplierInvoices.find(inv => {
+                const dbClean = cleanNum(inv.numeroFacture);
+                return dbClean.endsWith(cleanedImport) || cleanedImport.endsWith(dbClean);
+              });
+            }
+          }
+        }
+
+        if (numeroFacture && numeroFacture.length > 0 && !facture && !bl) {
+          const cleanNum = (s) => String(s).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          const cleanedImport = cleanNum(numeroFacture);
+          if (cleanedImport.length >= 3) {
+            const supplierBLs = await this.prisma.bonLivraison.findMany({
+              where: { fournisseurId: supplier.id }
+            });
+            // 1. Exact cleaned match
+            bl = supplierBLs.find(b => cleanNum(b.numeroBL) === cleanedImport);
+            
+            // 2. Suffix / substring match
+            if (!bl) {
+              bl = supplierBLs.find(b => {
+                const dbClean = cleanNum(b.numeroBL);
+                return dbClean.endsWith(cleanedImport) || cleanedImport.endsWith(dbClean);
+              });
+            }
+          }
+        }
+
         // Fallback: match by exact amount among unpaid invoices if still not found
         if (!facture && montant > 0) {
           facture = await this.prisma.factureFournisseur.findFirst({
@@ -2766,7 +2825,8 @@ export class ImportsService {
                 dateEcheance: dateReglement,
                 reference: safeRef,
                 statut: 'PAYEE',
-                type: row[mapping.modePaiement] || 'PAIEMENT',
+                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
+                banque: banque || undefined,
                 remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (nPiece: ${numeroFacture})`,
               },
             });
@@ -2781,7 +2841,8 @@ export class ImportsService {
                 dateEcheance: dateReglement,
                 reference: safeRef,
                 statut: 'PAYEE',
-                type: row[mapping.modePaiement] || 'ESPECES',
+                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
+                banque: banque || undefined,
                 remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (Row ${index + 1})`,
               },
             });
@@ -2792,7 +2853,7 @@ export class ImportsService {
                 montant,
                 categorie: 'AUTRE',
                 description: `Paiement sans facture: ${safeRef || 'Sans Ref'}`,
-                modePaiement: row[mapping.modePaiement] || 'ESPECES',
+                modePaiement: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
                 statut: 'PAYEE',
                 centreId:
                   supplier.centreId || (await this.getDefaultCentreId()),
@@ -2877,7 +2938,8 @@ export class ImportsService {
                 dateEcheance: dateReglement,
                 reference: safeRef,
                 statut: 'PAYEE',
-                type: row[mapping.modePaiement] || 'PAIEMENT',
+                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
+                banque: banque || undefined,
                 remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`,
               },
             });
@@ -2895,7 +2957,8 @@ export class ImportsService {
               dateEncaissement: dateReglement,
               reference: safeRef,
               statut: 'PAYEE',
-              type: row[mapping.modePaiement] || 'PAIEMENT',
+              type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
+              banque: banque || undefined,
             },
           });
         }
