@@ -377,6 +377,7 @@ export class BonLivraisonService {
       where: whereClause,
       select: {
         montantTTC: true,
+        montantHT: true,
         depense: { select: { montant: true, statut: true } },
         echeances: {
           where: { statut: 'ENCAISSE' },
@@ -388,6 +389,7 @@ export class BonLivraisonService {
     const globalStats = allItemsForStats.reduce(
       (acc, bl) => {
         acc.totalTTC += bl.montantTTC || 0;
+        acc.totalHT += bl.montantHT || 0;
         const paidEcheances = bl.echeances.reduce(
           (sum, e) => sum + e.montant,
           0,
@@ -408,7 +410,7 @@ export class BonLivraisonService {
         acc.totalPaid += totalPaidForBL;
         return acc;
       },
-      { totalTTC: 0, totalPaid: 0 },
+      { totalTTC: 0, totalHT: 0, totalPaid: 0 },
     );
 
     return {
@@ -416,6 +418,7 @@ export class BonLivraisonService {
       total,
       stats: {
         totalTTC: Math.round(globalStats.totalTTC * 100) / 100,
+        totalHT: Math.round(globalStats.totalHT * 100) / 100,
         totalPaid: Math.round(globalStats.totalPaid * 100) / 100,
         totalRemaining:
           Math.round((globalStats.totalTTC - globalStats.totalPaid) * 100) /

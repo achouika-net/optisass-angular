@@ -331,7 +331,7 @@ export class SupplierInvoiceListComponent implements OnInit {
             this.statsUpdated.emit({
               count: this.totalCount,
               totalTTC: this.stats.totalTTC || calcTTC,
-              totalHT: res.subtotals?.totalHT || calcHT, 
+              totalHT: res.stats?.totalHT || calcHT, 
               totalReste: this.stats.totalRemaining || calcReste
             });
           } else {

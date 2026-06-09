@@ -2264,11 +2264,20 @@ export class ImportsService {
           (numeroFacture === lastNum ? lastDateEmission : null) ||
           new Date();
         const dateEcheance = this.parseDate(row[mapping.dateEcheance]);
-        const montantHT = this.parseAmount(row[mapping.montantHT]);
-        const montantTVA = this.parseAmount(row[mapping.montantTVA]);
+        let montantHT = this.parseAmount(row[mapping.montantHT]);
+        let montantTVA = this.parseAmount(row[mapping.montantTVA]);
         let montantTTC = this.parseAmount(row[mapping.montantTTC]);
-        if (!montantTTC && (montantHT || montantTVA))
-          montantTTC = (montantHT || 0) + (montantTVA || 0);
+
+        // Auto-calculate missing financial values (standard 20% TVA rate)
+        if (montantTTC > 0 && !montantHT) {
+          montantHT = montantTTC / 1.2;
+          montantTVA = montantTTC - montantHT;
+        } else if (montantHT > 0 && !montantTTC) {
+          montantTTC = montantHT * 1.2;
+          montantTVA = montantTTC - montantHT;
+        } else if (montantHT > 0 && montantTTC > 0 && !montantTVA) {
+          montantTVA = montantTTC - montantHT;
+        }
 
         let isBL = false;
         if (isBLOverride !== undefined && isBLOverride !== null) {
@@ -2509,18 +2518,18 @@ export class ImportsService {
               },
             });
 
+            // Only mark as paid if payment mode was EXPLICITLY provided in the import file
+            const paymentMode = row[mapping.modePaiement] ? String(row[mapping.modePaiement]).trim().toUpperCase() : null;
+
             await this.prisma.echeancePaiement.create({
               data: {
                 bonLivraisonId: record.id,
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
-                type: row[mapping.modePaiement] || 'ESPECES',
-                statut:
-                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
-                    ? 'ENCAISSE'
-                    : 'EN_ATTENTE',
+                type: paymentMode || 'ESPECES',
+                statut: paymentMode === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
                 dateEncaissement:
-                  (row[mapping.modePaiement] || 'ESPECES') === 'ESPECES'
+                  paymentMode === 'ESPECES'
                     ? dateEcheance || dateEmission
                     : null,
               },
