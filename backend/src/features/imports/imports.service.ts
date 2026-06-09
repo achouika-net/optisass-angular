@@ -2638,6 +2638,8 @@ export class ImportsService {
         const referenceReglement = row[mapping.reference];
         const dateReglement =
           this.parseDate(row[mapping.datePaiement]) || new Date();
+        const dateEcheanceVal =
+          this.parseDate(row[mapping.dateEcheance]) || dateReglement;
         const montant = this.parseAmount(
           row[mapping.montant] || row[mapping.montantTTC],
         );
@@ -2955,6 +2957,7 @@ export class ImportsService {
             data: {
               montant,
               dateEncaissement: dateReglement,
+              dateEcheance: dateEcheanceVal,
               reference: safeRef,
               statut: 'PAYEE',
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
