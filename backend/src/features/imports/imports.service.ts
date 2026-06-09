@@ -32,6 +32,7 @@ export class ImportsService {
     if (s.includes('CARTE')) return 'CARTE';
     if (s.includes('AVOIR')) return 'PRISE_EN_CHARGE';
     if (s.includes('GESTE')) return 'PRISE_EN_CHARGE';
+    if (s.includes('NON REGL') || s.includes('NON REGL�') || s.includes('NON REGLE') || s.includes('NON_REGLE')) return 'NON_REGLE';
     return s;
   }
 
@@ -2885,7 +2886,21 @@ export class ImportsService {
             where: idempotencyWhere,
           });
           if (existing) {
-            results.skipped++;
+            // Update bank and type if they are missing/different to recover bank details on re-import
+            const nextType = this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT';
+            if ((!existing.banque && banque) || existing.type !== nextType) {
+              await this.prisma.echeancePaiement.update({
+                where: { id: existing.id },
+                data: {
+                  banque: banque || undefined,
+                  type: nextType,
+                  dateEcheance: dateEcheanceVal
+                }
+              });
+              results.updated++;
+            } else {
+              results.skipped++;
+            }
             continue;
           }
         } else {
@@ -2896,9 +2911,20 @@ export class ImportsService {
             where: idempotencyWhere,
           });
           if (existing) {
-            // If it's a second run, we might want to skip, but how to distinguish from legit second payment?
-            // For now, let's skip to avoid obvious duplicates on re-import.
-            results.skipped++;
+            const nextType = this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT';
+            if ((!existing.banque && banque) || existing.type !== nextType) {
+              await this.prisma.echeancePaiement.update({
+                where: { id: existing.id },
+                data: {
+                  banque: banque || undefined,
+                  type: nextType,
+                  dateEcheance: dateEcheanceVal
+                }
+              });
+              results.updated++;
+            } else {
+              results.skipped++;
+            }
             continue;
           }
         }

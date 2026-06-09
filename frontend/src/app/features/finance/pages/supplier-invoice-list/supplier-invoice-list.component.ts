@@ -219,7 +219,22 @@ export class SupplierInvoiceListComponent implements OnInit {
   public getPaymentType(element: SupplierInvoice): string {
     if (!element.echeances || element.echeances.length === 0) return '-';
     const types = Array.from(new Set(element.echeances.map(e => e.type)));
-    if (types.length === 1) return types[0];
+    const mapping: { [key: string]: string } = {
+      'ESPECES': 'Esp�ces',
+      'CHEQUE': 'Ch�que',
+      'LCN': 'LCN',
+      'VIREMENT': 'Virement',
+      'CARTE': 'Carte',
+      'PRISE_EN_CHARGE': 'Prise en charge',
+      'AVOIR': 'Avoir',
+      'MIXTE': 'Mixte',
+      'AUTRE': 'Autre',
+      'NON_REGLE': 'Non R�gl�'
+    };
+    if (types.length === 1) {
+      const type = types[0];
+      return mapping[type] || type;
+    }
     return 'MIXTE';
   }
 
