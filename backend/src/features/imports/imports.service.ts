@@ -2341,14 +2341,8 @@ export class ImportsService {
                 montant: montantTTC,
                 dateEcheance: dateEmission,
                 type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                statut:
-                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
-                    ? 'ENCAISSE'
-                    : 'EN_ATTENTE',
-                dateEncaissement:
-                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
-                    ? dateEmission
-                    : null,
+                statut: (dateEmission && dateEmission > new Date()) ? 'EN_ATTENTE' : ((this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
+                dateEncaissement: (dateEmission && dateEmission <= new Date()) ? dateEmission : null,
               },
             });
 
@@ -2545,11 +2539,8 @@ export class ImportsService {
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
                 type: paymentMode || 'ESPECES',
-                statut: paymentMode === 'ESPECES' ? 'ENCAISSE' : 'EN_ATTENTE',
-                dateEncaissement:
-                  paymentMode === 'ESPECES'
-                    ? dateEcheance || dateEmission
-                    : null,
+                statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : (paymentMode === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
+                dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
               },
             });
           } else {
@@ -2578,14 +2569,8 @@ export class ImportsService {
                 montant: montantTTC || 0,
                 dateEcheance: dateEcheance || dateEmission,
                 type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                statut:
-                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
-                    ? 'ENCAISSE'
-                    : 'EN_ATTENTE',
-                dateEncaissement:
-                  (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES'
-                    ? dateEcheance || dateEmission
-                    : null,
+                statut: (dateEmission && dateEmission > new Date()) ? 'EN_ATTENTE' : ((this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
+                dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
               },
             });
           }
