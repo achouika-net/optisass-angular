@@ -507,8 +507,40 @@ export class OutgoingPaymentListComponent implements OnInit {
                 const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
                 start.setDate(diff);
                 break;
+            case 'LAST_WEEK':
+                const lwd = now.getDay();
+                const lwDiff = now.getDate() - lwd + (lwd === 0 ? -6 : 1) - 7;
+                start.setDate(lwDiff);
+                end.setDate(start.getDate() + 6);
+                break;
             case 'THIS_MONTH':
                 start.setDate(1);
+                break;
+            case 'LAST_MONTH':
+                start.setMonth(now.getMonth() - 1, 1);
+                end.setMonth(now.getMonth(), 0); // Last day of prev month
+                break;
+            case 'LAST_3_MONTHS':
+                start.setMonth(now.getMonth() - 3, 1);
+                break;
+            case 'LAST_6_MONTHS':
+                start.setMonth(now.getMonth() - 6, 1);
+                break;
+            case 'THIS_QUARTER':
+                const q = Math.floor(now.getMonth() / 3);
+                start.setMonth(q * 3, 1);
+                break;
+            case 'LAST_QUARTER':
+                const lq = Math.floor(now.getMonth() / 3) - 1;
+                start.setMonth(lq * 3, 1);
+                end.setMonth(lq * 3 + 3, 0);
+                break;
+            case 'THIS_YEAR':
+                start.setMonth(0, 1);
+                break;
+            case 'LAST_YEAR':
+                start.setFullYear(now.getFullYear() - 1, 0, 1);
+                end.setFullYear(now.getFullYear() - 1, 11, 31);
                 break;
             case 'ALL':
                 this.filters.startDate = '';
