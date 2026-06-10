@@ -218,12 +218,12 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   public getPaymentType(element: SupplierInvoice): string {
     const statut = (element as any).factureFournisseur?.statut || (element as any).statut;
-    if (statut === 'A_PAYER') return 'Non R�gl�';
+    if (statut === 'A_PAYER') return 'Non Réglé';
     if (!element.echeances || element.echeances.length === 0) return '-';
     const types = Array.from(new Set(element.echeances.map(e => e.type)));
     const mapping: { [key: string]: string } = {
-      'ESPECES': 'Esp�ces',
-      'CHEQUE': 'Ch�que',
+      'ESPECES': 'Espèces',
+      'CHEQUE': 'Chèque',
       'LCN': 'LCN',
       'VIREMENT': 'Virement',
       'CARTE': 'Carte',
@@ -231,7 +231,7 @@ export class SupplierInvoiceListComponent implements OnInit {
       'AVOIR': 'Avoir',
       'MIXTE': 'Mixte',
       'AUTRE': 'Autre',
-      'NON_REGLE': 'Non R�gl�'
+      'NON_REGLE': 'Non Réglé'
     };
     if (types.length === 1) {
       const type = types[0];
@@ -242,12 +242,12 @@ export class SupplierInvoiceListComponent implements OnInit {
 
   public formatStatut(statut: string): string {
     const mapping: { [key: string]: string } = {
-      'PAYEE': 'Pay�',
+      'PAYEE': 'Payé',
       'A_PAYER': 'A Payer',
       'EN_ATTENTE': 'En attente',
       'PARTIELLE': 'Partiel',
-      'VALIDEE': 'Valid�e',
-      'ANNULEE': 'Annul�e',
+      'VALIDEE': 'Validée',
+      'ANNULEE': 'Annulée',
     };
     return mapping[statut] || statut;
   }
