@@ -2876,7 +2876,7 @@ export class ImportsService {
         const idempotencyWhere: any = {
           montant,
           dateEncaissement: dateReglement,
-          statut: { in: ['PAYEE', 'ENCAISSE'] as any[] },
+          statut: { in: ['PAYEE', 'ENCAISSE', 'EN_ATTENTE'] as any[] },
         };
         if (facture) idempotencyWhere.factureFournisseurId = facture.id;
         if (depense && depense.echeanceId)
