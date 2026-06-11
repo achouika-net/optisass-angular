@@ -2639,9 +2639,9 @@ export class ImportsService {
           this.parseDate(row[mapping.datePaiement]) || new Date();
         const dateEcheanceVal =
           this.parseDate(row[mapping.dateEcheance]) || dateReglement;
-        const montant = this.parseAmount(
+        const montant = Math.abs(this.parseAmount(
           row[mapping.montant] || row[mapping.montantTTC],
-        );
+        ));
         const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement']);
         const banque = banqueVal ? String(banqueVal).trim() : null;
 
