@@ -404,6 +404,7 @@ export class DataImportComponent implements OnInit {
             { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Virement)' },
             { value: 'reference', label: 'Référence (N° Chèque/Virement)' },
             { value: 'dateEcheance', label: 'Date Échéance (Chèque/LCN)' },
+            { value: 'banque', label: 'Banque' },
             { value: 'notes', label: 'Notes' }
         ],
         factures_ventes: [
@@ -429,6 +430,7 @@ export class DataImportComponent implements OnInit {
             { value: 'montant', label: 'Montant Payé' },
             { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Carte/Virement)' },
             { value: 'reference', label: 'Référence' },
+            { value: 'banque', label: 'Banque' },
             { value: 'notes', label: 'Notes' }
         ]
     };

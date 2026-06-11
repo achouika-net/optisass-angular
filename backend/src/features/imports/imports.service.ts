@@ -26,14 +26,33 @@ export class ImportsService {
     if (!type) return 'ESPECES';
     const s = String(type).trim().toUpperCase();
     if (s.includes('ESPECE') || s.includes('LIQUIDE') || s.includes('CASH') || s === 'LQR') return 'ESPECES';
-    if (s.includes('CHEQUE') || s.includes('CH�QUE')) return 'CHEQUE';
+    if (s.includes('CHEQUE') || s.includes('CH�QUE') || s.includes('CHÈQUE') || s.includes('CHÉQUE') || s.includes('CHQUE')) return 'CHEQUE';
     if (s.includes('EFFET') || s === 'LCN') return 'LCN';
-    if (s.includes('VIREMENT') || s.includes('PRELEVEMENT') || s.includes('PR�L�VEMENT')) return 'VIREMENT';
+    if (s.includes('VIREMENT') || s.includes('PRELEVEMENT') || s.includes('PR��VEMENT') || s.includes('PR�L�VEMENT') || s.includes('PRÉLÈVEMENT') || s.includes('PRÉLEVEMENT') || s.includes('PRELÈVEMENT') || s.includes('PRLVEMENT')) return 'VIREMENT';
     if (s.includes('CARTE')) return 'CARTE';
-    if (s.includes('AVOIR')) return 'PRISE_EN_CHARGE';
+    if (s.includes('AVOIR')) return 'AVOIR';
     if (s.includes('GESTE')) return 'PRISE_EN_CHARGE';
-    if (s.includes('NON REGL') || s.includes('NON REGL�') || s.includes('NON REGLE') || s.includes('NON_REGLE')) return 'NON_REGLE';
+    if (s.includes('NON REGL') || s.includes('NON REGL�') || s.includes('NON REGLE') || s.includes('NON_REGLE') || s.includes('NON REGLÉ') || s.includes('NON REGLÈ')) return 'NON_REGLE';
     return s;
+  }
+
+  private getRowValue(row: any, mappingKey: string, mapping: any, synonyms: string[] = []): any {
+    if (!row) return undefined;
+    if (mapping && mapping[mappingKey] && row[mapping[mappingKey]] !== undefined && row[mapping[mappingKey]] !== null && row[mapping[mappingKey]] !== '') {
+      return row[mapping[mappingKey]];
+    }
+    const candidateKeys = [mappingKey, ...synonyms].map(k => k.toLowerCase().trim());
+    const rowKeys = Object.keys(row || {});
+    for (const key of rowKeys) {
+      const normalizedKey = key.toLowerCase().trim();
+      if (candidateKeys.includes(normalizedKey)) {
+        const val = row[key];
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+          return val;
+        }
+      }
+    }
+    return undefined;
   }
 
   private logToFile(msg: string) {
@@ -2100,8 +2119,8 @@ export class ImportsService {
             : null,
           cnss: row[mapping.cnss] ? String(row[mapping.cnss]).trim() : null,
           rib: row[mapping.rib] ? String(row[mapping.rib]).trim() : null,
-          banque: row[mapping.banque]
-            ? String(row[mapping.banque]).trim()
+          banque: this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement'])
+            ? String(this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement'])).trim()
             : null,
           conditionsPaiement: row[mapping.conditionsPaiement]
             ? String(row[mapping.conditionsPaiement]).trim()
@@ -2531,18 +2550,21 @@ export class ImportsService {
             });
 
             // Only mark as paid if payment mode was EXPLICITLY provided in the import file
-            const paymentMode = row[mapping.modePaiement] ? this.normalizePaymentType(row[mapping.modePaiement]) : null;
-
-            await this.prisma.echeancePaiement.create({
-              data: {
-                bonLivraisonId: record.id,
-                montant: montantTTC || 0,
-                dateEcheance: dateEcheance || dateEmission,
-                type: paymentMode || 'ESPECES',
-                statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : (paymentMode === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
-                dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
-              },
-            });
+            // Only create payment schedule for BL if it is explicitly mentioned as paid (payment mode provided and not NON_REGLE)
+            const rawPaymentMode = row[mapping.modePaiement];
+            const paymentMode = rawPaymentMode ? this.normalizePaymentType(rawPaymentMode) : null;
+            if (paymentMode && paymentMode !== 'NON_REGLE') {
+              await this.prisma.echeancePaiement.create({
+                data: {
+                  bonLivraisonId: record.id,
+                  montant: montantTTC || 0,
+                  dateEcheance: dateEcheance || dateEmission,
+                  type: paymentMode,
+                  statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : (paymentMode === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
+                  dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
+                },
+              });
+            }
           } else {
             const record = await this.prisma.factureFournisseur.create({
               data: {
@@ -2553,7 +2575,7 @@ export class ImportsService {
                 montantTVA: montantTVA || 0,
                 montantTTC: montantTTC || 0,
                 quantite: this.parseAmount(row[mapping.quantite]),
-                statut: ((dateEcheance || dateEmission) <= new Date() && (this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') !== 'NON_REGLE') ? 'PAYEE' : 'A_PAYER',
+                statut: 'EN_ATTENTE',
                 type: row[mapping.type] || 'ACHAT_STOCK',
                 fournisseurId: supplier.id,
                 centreId: centreId || null,
@@ -2563,16 +2585,7 @@ export class ImportsService {
               } as any,
             });
 
-            await this.prisma.echeancePaiement.create({
-              data: {
-                factureFournisseurId: record.id,
-                montant: montantTTC || 0,
-                dateEcheance: dateEcheance || dateEmission,
-                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                statut: (dateEmission && dateEmission > new Date()) ? 'EN_ATTENTE' : ((this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
-                dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
-              },
-            });
+            // Invoice payment schedules are managed strictly via the payments sheet import. Invoices start as EN_ATTENTE.
           }
           results.success++;
         }
@@ -2629,7 +2642,8 @@ export class ImportsService {
         const montant = this.parseAmount(
           row[mapping.montant] || row[mapping.montantTTC],
         );
-        const banque = row[mapping.banque] ? String(row[mapping.banque]).trim() : null;
+        const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement']);
+        const banque = banqueVal ? String(banqueVal).trim() : null;
 
         if (montant === 0) continue;
 
@@ -2757,7 +2771,8 @@ export class ImportsService {
           }
         }
 
-        // Fallback: match by exact amount among unpaid invoices if still not found
+        // Fallback: match by exact amount among unpaid invoices if still not found - DISABLED TO PREVENT INCORRECT LINKING
+        /*
         if (!facture && montant > 0) {
           facture = await this.prisma.factureFournisseur.findFirst({
             where: {
@@ -2768,8 +2783,10 @@ export class ImportsService {
             orderBy: { dateEmission: 'asc' },
           });
         }
+        */
 
-        // Fallback: match by exact amount among unpaid expenses (Dépenses)
+        // Fallback: match by exact amount among unpaid expenses (Dépenses) - DISABLED TO PREVENT INCORRECT LINKING
+        /*
         if (!facture && montant > 0) {
           depense = await this.prisma.depense.findFirst({
             where: {
@@ -2779,6 +2796,7 @@ export class ImportsService {
             },
           });
         }
+        */
 
         const safeRef =
           referenceReglement && String(referenceReglement).trim().length > 0
@@ -2889,11 +2907,11 @@ export class ImportsService {
             continue;
           }
         } else {
-          // If no reference, we allow multiple identical payments to be safe (legit multi-payments on same day)
-          // UNLESS the user is re-running the exact same import, but we lack row-level tracking.
-          // To prevent infinite duplicates, we check if EXACTLY such a payment exists (most likely already imported)
+          // If no reference: only skip if the exact payment was created in the last 10 minutes
+          // (prevents true double-import during the same session, but allows re-import after data reset)
+          const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
           const existing = await this.prisma.echeancePaiement.findFirst({
-            where: idempotencyWhere,
+            where: { ...idempotencyWhere, createdAt: { gte: tenMinutesAgo } },
           });
           if (existing) {
             const nextType = this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT';
@@ -2914,64 +2932,48 @@ export class ImportsService {
           }
         }
 
-        let echeanceIdToUpdate: string | null = null;
-
         if (facture) {
-          // Reconcile with the placeholder EcheancePaiement created by importFacturesFournisseurs
-          const pending = await this.prisma.echeancePaiement.findFirst({
-            where: { factureFournisseurId: facture.id, statut: 'EN_ATTENTE' },
-            orderBy: { dateEcheance: 'asc' },
+          // Secondary installment (Existing invoice already has a paid schedule)
+          // CRITICAL: Idempotency check for additional payments
+          const existingAdd = await this.prisma.echeancePaiement.findFirst({
+            where: {
+              factureFournisseurId: facture.id,
+              montant,
+              dateEncaissement: dateReglement,
+              statut: { in: ['PAYEE', 'ENCAISSE'] as any[] },
+              reference: safeRef,
+            },
           });
 
-          if (pending) {
-            echeanceIdToUpdate = pending.id;
-          } else {
-            // Secondary installment (Existing invoice already has a paid schedule)
-            // CRITICAL: Idempotency check for additional payments
-            const existingAdd = await this.prisma.echeancePaiement.findFirst({
-              where: {
-                factureFournisseurId: facture.id,
-                montant,
-                dateEncaissement: dateReglement,
-                statut: { in: ['PAYEE', 'ENCAISSE'] as any[] },
-                reference: safeRef,
-              },
-            });
-
-            if (existingAdd) {
-              results.skipped++;
-              continue;
-            }
-
-            await this.prisma.echeancePaiement.create({
-              data: {
-                factureFournisseurId: facture.id,
-                montant,
-                dateEncaissement: dateReglement,
-                dateEcheance: dateReglement,
-                reference: safeRef,
-                statut: dateReglement > new Date() ? 'EN_ATTENTE' : 'PAYEE',
-                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
-                banque: banque || undefined,
-                remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`,
-              },
-            });
+          if (existingAdd) {
+            results.skipped++;
+            continue;
           }
+
+          await this.prisma.echeancePaiement.create({
+            data: {
+              factureFournisseurId: facture.id,
+              montant,
+              dateEncaissement: dateReglement,
+              dateEcheance: dateEcheanceVal || dateReglement,
+              reference: safeRef,
+              statut: dateReglement > new Date() ? 'EN_ATTENTE' : 'PAYEE',
+              type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
+              banque: banque || undefined,
+              remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`,
+            },
+          });
         } else if (depense) {
           // Reconcile with the expense's placeholder EcheancePaiement
-          echeanceIdToUpdate = depense.echeanceId;
-        }
-
-        if (echeanceIdToUpdate) {
           await this.prisma.echeancePaiement.update({
-            where: { id: echeanceIdToUpdate },
+            where: { id: depense.echeanceId },
             data: {
               montant,
               dateEncaissement: dateReglement,
               dateEcheance: dateEcheanceVal,
               reference: safeRef,
               statut: dateReglement && dateReglement > new Date() ? 'EN_ATTENTE' : 'PAYEE',
-                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
+              type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
               banque: banque || undefined,
             },
           });
@@ -3475,6 +3477,9 @@ export class ImportsService {
           ? String(row[mapping.notes]).substring(0, 500)
           : null;
 
+        const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement']);
+        const banque = banqueVal ? String(banqueVal).trim() : null;
+
         paymentsToCreate.push({
           factureId: facture.id,
           montant,
@@ -3482,6 +3487,7 @@ export class ImportsService {
           mode: modeSource,
           reference,
           notes,
+          banque,
           statut: 'ENCAISSE',
         });
 

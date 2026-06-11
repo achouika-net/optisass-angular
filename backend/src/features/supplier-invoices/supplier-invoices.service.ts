@@ -182,7 +182,13 @@ export class SupplierInvoicesService {
     const whereClause: Prisma.FactureFournisseurWhereInput = {};
 
     if (fournisseurId) whereClause.fournisseurId = fournisseurId;
-    if (statut) whereClause.statut = statut;
+    if (statut) {
+      if (statut === 'EN_ATTENTE') {
+        whereClause.statut = { in: ['EN_ATTENTE', 'A_PAYER'] };
+      } else {
+        whereClause.statut = statut;
+      }
+    }
     if (clientId) whereClause.clientId = clientId;
     if (centreId) whereClause.centreId = centreId;
     if (ficheId) whereClause.ficheId = ficheId;
@@ -217,7 +223,7 @@ export class SupplierInvoicesService {
           montantTTC: true,
           montantHT: true,
           echeances: {
-            where: { statut: 'ENCAISSE' },
+            where: { statut: { in: ['ENCAISSE', 'PAYEE'] } },
             select: { montant: true },
           },
         },
@@ -238,8 +244,18 @@ export class SupplierInvoicesService {
       { totalTTC: 0, totalHT: 0, totalPaid: 0 },
     );
 
+    // Calculate resteAPayer and acompte for each invoice based on paid echeances
+    const enrichedData = data.map((inv: any) => {
+      const totalPaid = (inv.echeances || [])
+        .filter((e: any) => ['PAYEE', 'ENCAISSE'].includes(e.statut))
+        .reduce((sum: number, e: any) => sum + (e.montant || 0), 0);
+      const resteAPayer = Math.max(0, Math.round((inv.montantTTC - totalPaid) * 100) / 100);
+      const acompte = Math.round(Math.min(totalPaid, inv.montantTTC) * 100) / 100;
+      return { ...inv, resteAPayer, acompte };
+    });
+
     return {
-      data,
+      data: enrichedData,
       total,
       stats: {
         totalTTC: Math.round(globalStats.totalTTC * 100) / 100,

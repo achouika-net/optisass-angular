@@ -335,6 +335,22 @@
                 </td>
             </ng-container>
 
+            <!-- Acompte Column -->
+            <ng-container matColumnDef="acompte">
+                <th mat-header-cell *matHeaderCellDef class="text-right"> Acompte </th>
+                <td mat-cell *matCellDef="let element" class="text-right whitespace-nowrap">
+                    {{ (element.montantTTC - (element.resteAPayer !== undefined ? element.resteAPayer : element.montantTTC)) | number:'1.2-2' }} DH
+                </td>
+            </ng-container>
+
+            <!-- Reste à Payer Column -->
+            <ng-container matColumnDef="resteAPayer">
+                <th mat-header-cell *matHeaderCellDef class="text-right"> Reste à Payer </th>
+                <td mat-cell *matCellDef="let element" class="text-right whitespace-nowrap font-bold" [class.text-red-600]="element.resteAPayer > 0" [class.text-green-600]="element.resteAPayer === 0">
+                    {{ (element.resteAPayer !== undefined ? element.resteAPayer : 0) | number:'1.2-2' }} DH
+                </td>
+            </ng-container>
+
             <!-- Montant Column -->
             <ng-container matColumnDef="montant">
                 <th mat-header-cell *matHeaderCellDef class="text-right"> Montant TTC </th>
