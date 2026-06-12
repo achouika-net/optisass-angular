@@ -166,7 +166,9 @@ export class SupplierInvoiceListComponent implements OnInit {
     statut: '',
     facturation: 'EN_ATTENTE',
     startDate: null as Date | null,
-    endDate: null as Date | null
+    endDate: null as Date | null,
+    numeroFacture: '',
+    modePaiement: ''
   };
 
   public stats = {
@@ -287,7 +289,9 @@ export class SupplierInvoiceListComponent implements OnInit {
       statut: '',
       facturation: 'EN_ATTENTE',
       startDate: null,
-      endDate: null
+      endDate: null,
+      numeroFacture: '',
+      modePaiement: ''
     };
     this.loadInvoices();
   }
@@ -330,6 +334,7 @@ export class SupplierInvoiceListComponent implements OnInit {
           fournisseurId: this.filters.fournisseurId || undefined,
           statut: this.filters.statut || undefined,
           facturation: this.filters.facturation || undefined,
+          numeroBL: this.filters.numeroFacture || undefined,
           startDate,
           endDate,
           page: this.pageIndex + 1,
@@ -339,6 +344,8 @@ export class SupplierInvoiceListComponent implements OnInit {
           centreId: center.id,
           fournisseurId: this.filters.fournisseurId || undefined,
           statut: this.filters.statut || undefined,
+          numeroFacture: this.filters.numeroFacture || undefined,
+          modePaiement: this.filters.modePaiement || undefined,
           startDate,
           endDate,
           page: this.pageIndex + 1,

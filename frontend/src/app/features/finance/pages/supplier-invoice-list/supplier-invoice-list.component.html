@@ -152,6 +152,23 @@
                     </mat-select>
                 </mat-form-field>
 
+                <mat-form-field appearance="outline" class="dense-field">
+                    <mat-label>{{ listMode === 'BL' ? 'N° BL' : 'N° Facture' }}</mat-label>
+                    <input aria-label="Rechercher par numéro" matInput [(ngModel)]="filters.numeroFacture" (ngModelChange)="applyFilters()" placeholder="Rechercher...">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="dense-field" *ngIf="listMode !== 'BL'">
+                    <mat-label>Mode de Paiement</mat-label>
+                    <mat-select aria-label="Select field" [(ngModel)]="filters.modePaiement" (ngModelChange)="applyFilters()">
+                        <mat-option value="">Tous les modes</mat-option>
+                        <mat-option value="ESPECES">Espèces</mat-option>
+                        <mat-option value="CHEQUE">Chèque</mat-option>
+                        <mat-option value="LCN">LCN</mat-option>
+                        <mat-option value="VIREMENT">Virement</mat-option>
+                        <mat-option value="AVOIR">Avoir</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
                 <mat-form-field appearance="outline" class="dense-field" *ngIf="listMode === 'BL'">
                     <mat-label>Facturation</mat-label>
                     <mat-select aria-label="Select field" [(ngModel)]="filters.facturation" (ngModelChange)="applyFilters()">
@@ -394,7 +411,7 @@
             </ng-container>
 
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="selection.toggle(row)"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="selection.toggle(row)" (dblclick)="openInvoiceDialog(row, true)"></tr>
         </table>
 
         <div class="border-t border-gray-100">

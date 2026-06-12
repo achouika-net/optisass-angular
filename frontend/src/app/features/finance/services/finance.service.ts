@@ -76,6 +76,8 @@ export class FinanceService {
         centreId?: string;
         startDate?: string;
         endDate?: string;
+        numeroFacture?: string;
+        modePaiement?: string;
         page?: number;
         limit?: number;
     }): Observable<{ data: SupplierInvoice[], total: number }> {
@@ -86,6 +88,8 @@ export class FinanceService {
         if (filters?.centreId) params = params.set('centreId', filters.centreId);
         if (filters?.startDate) params = params.set('startDate', filters.startDate);
         if (filters?.endDate) params = params.set('endDate', filters.endDate);
+        if (filters?.numeroFacture) params = params.set('numeroFacture', filters.numeroFacture);
+        if (filters?.modePaiement) params = params.set('modePaiement', filters.modePaiement);
         if (filters?.page) params = params.set('page', filters.page.toString());
         if (filters?.limit) params = params.set('limit', filters.limit.toString());
 

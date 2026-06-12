@@ -165,6 +165,8 @@ export class SupplierInvoicesService {
     startDate?: string;
     endDate?: string;
     ficheId?: string;
+    numeroFacture?: string;
+    modePaiement?: string;
     page?: number;
     limit?: number;
   }) {
@@ -176,6 +178,8 @@ export class SupplierInvoicesService {
       startDate,
       endDate,
       ficheId,
+      numeroFacture,
+      modePaiement,
       page,
       limit,
     } = filters;
@@ -192,6 +196,16 @@ export class SupplierInvoicesService {
     if (clientId) whereClause.clientId = clientId;
     if (centreId) whereClause.centreId = centreId;
     if (ficheId) whereClause.ficheId = ficheId;
+    if (numeroFacture) {
+      whereClause.numeroFacture = { contains: numeroFacture, mode: 'insensitive' };
+    }
+    if (modePaiement) {
+      whereClause.echeances = {
+        some: {
+          type: modePaiement
+        }
+      };
+    }
 
     if (startDate || endDate) {
       whereClause.dateEmission = {};
@@ -438,7 +452,7 @@ export class SupplierInvoicesService {
     const totalPaid =
       Math.round(
         activeEcheances
-          .filter((e) => e.statut === 'ENCAISSE')
+          .filter((e) => ['PAYEE', 'ENCAISSE'].includes(e.statut))
           .reduce((sum, e) => sum + (e.montant || 0), 0) * 100,
       ) / 100;
 

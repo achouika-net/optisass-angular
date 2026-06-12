@@ -44,6 +44,8 @@ export class SupplierInvoicesController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('ficheId') ficheId?: string,
+    @Query('numeroFacture') numeroFacture?: string,
+    @Query('modePaiement') modePaiement?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -55,6 +57,8 @@ export class SupplierInvoicesController {
       startDate,
       endDate,
       ficheId,
+      numeroFacture,
+      modePaiement,
       page,
       limit,
     });
