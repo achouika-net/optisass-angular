@@ -149,6 +149,15 @@ export class TreasuryService {
       echeanceWhere += `AND ep.type IN (${inClause}) `;
     }
 
+    if (filters.type && filters.type !== 'ALL') {
+      const cleanType = String(filters.type).replace(/_/g, '%');
+      sqlParams.push('%' + cleanType + '%');
+      const typeIdx = sqlParams.length;
+      
+      depenseWhere += 'AND (d.categorie ILIKE $' + typeIdx + ' OR REPLACE(d.categorie, \' \', \'_\') ILIKE $' + typeIdx + ') ';
+      echeanceWhere += 'AND (ff.type ILIKE $' + typeIdx + ' OR REPLACE(ff.type, \' \', \'_\') ILIKE $' + typeIdx + ' OR (ff.id IS NULL AND \'ACHAT_STOCK\' ILIKE $' + typeIdx + ')) ';
+    }
+
     const includeDepense = !filters.source || filters.source === 'DEPENSE';
     const includeFacture = !filters.source || filters.source === 'FACTURE';
 
@@ -176,10 +185,16 @@ export class TreasuryService {
           ep.id, ${echeanceDateField} as date, 
           CASE WHEN ff.id IS NOT NULL THEN '[F] ' || ff."numeroFacture" ELSE '[Paiement direct] ' || COALESCE(ep.reference, '') END as libelle,
           COALESCE(ff.type, 'ACHAT_STOCK') as type, 
-          COALESCE(f_ff.nom, 'N/A') as fournisseur, ep.montant, ep.statut, 'FACTURE' as source, 
+          COALESCE(f_ff.nom, 'N/A') as fournisseur,
+          CASE WHEN ep.type = 'AVOIR' AND (ff.type = 'AVOIR' OR ff."numeroFacture" ILIKE 'AV%' OR ff."numeroFacture" ILIKE 'CN%') THEN -ep.montant ELSE ep.montant END as montant,
+          ep.statut, 'FACTURE' as source, 
           ep.type as "methodePaiement", ep.reference as "numeroPiece", 
           COALESCE(ep.banque, 'BANQUE') as banque, ep."dateEcheance", ep."dateEncaissement", 
-          CASE WHEN ff.id IS NOT NULL AND ff."montantTTC" > 0 THEN (ep.montant * (ff."montantHT" / ff."montantTTC")) ELSE ep.montant END as "montantHT", 
+          CASE WHEN ff.id IS NOT NULL AND ff."montantTTC" > 0 THEN 
+            ((CASE WHEN ep.type = 'AVOIR' AND (ff.type = 'AVOIR' OR ff."numeroFacture" ILIKE 'AV%' OR ff."numeroFacture" ILIKE 'CN%') THEN -ep.montant ELSE ep.montant END) * (ff."montantHT" / ff."montantTTC")) 
+          ELSE 
+            (CASE WHEN ep.type = 'AVOIR' AND (ff.type = 'AVOIR' OR ff."numeroFacture" ILIKE 'AV%' OR ff."numeroFacture" ILIKE 'CN%') THEN -ep.montant ELSE ep.montant END) 
+          END as "montantHT", 
           ep.id as "echeanceId"
         FROM "EcheancePaiement" ep
         LEFT JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id

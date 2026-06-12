@@ -748,7 +748,7 @@ export class StatsService {
 
       let ffExpenses = 0;
       ffList.forEach((f: any) => {
-        const isAvoir = f.echeances.length > 0 || f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
+        const isAvoir = f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
         const amount = Math.abs(f.montantHT || 0);
         if (isAvoir) {
           ffExpenses -= amount;
@@ -821,7 +821,7 @@ export class StatsService {
         );
       });
       ffListForBreakdown.forEach((f: any) => {
-        const isAvoir = f.echeances.length > 0 || f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
+        const isAvoir = f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
         const amount = Math.abs(f.montantHT || 0);
         const cat = isAvoir ? 'AVOIR_FOURNISSEUR' : (f.type || 'FACTURE');
         if (isAvoir) {
@@ -983,7 +983,7 @@ export class StatsService {
 
         const vals = dataMap.get(label) || { revenue: 0, cogs: 0, expenses: 0 };
 
-        const isAvoir = f.echeances.length > 0 || f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
+        const isAvoir = f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
         const isInventory = this.INVENTORY_PURCHASE_TYPES.includes(f.type || '');
         const amount = Math.abs(f.montantTTC || f.montantHT || 0);
 

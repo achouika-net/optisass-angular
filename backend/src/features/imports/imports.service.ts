@@ -2815,7 +2815,7 @@ export class ImportsService {
                 montantTTC: montant,
                 statut: 'PAYEE',
                 fournisseurId: supplier.id,
-                type: 'ACHAT_STOCK',
+                type: this.normalizePaymentType(row[mapping.modePaiement]) === 'AVOIR' ? 'AVOIR' : 'ACHAT_STOCK',
                 centreId:
                   supplier.centreId || (await this.getDefaultCentreId()),
                 referenceInterne: `AUTO-CREATED (nPiece: ${numeroFacture})`,

@@ -133,7 +133,7 @@ export class InvoiceFormDialogComponent implements OnInit {
     invoiceTypes = [
         'ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE',
         'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'COTISATION_AMO_CNSS',
-        'ACHAT_STOCK', 'FRAIS_GENERAUX', 'IMMOBILISATION', 'AUTRE'
+        'ACHAT_STOCK', 'FRAIS_GENERAUX', 'IMMOBILISATION', 'AVOIR', 'AUTRE'
     ];
     filteredTypes!: Observable<string[]>;
     invoiceStatus = ['EN_ATTENTE', 'VALIDEE', 'PARTIELLE', 'PAYEE', 'ANNULEE'];

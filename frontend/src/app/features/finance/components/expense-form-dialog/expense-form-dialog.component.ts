@@ -69,7 +69,7 @@ export class ExpenseFormDialogComponent implements OnInit {
         'ACHAT_VERRE_OPTIQUE', 'ACHAT_MONTURES_OPTIQUE', 'ACHAT_MONTURES_SOLAIRE',
         'ACHAT_LENTILLES', 'ACHAT_PRODUITS', 'COTISATION_AMO_CNSS',
         'LOYER', 'ELECTRICITE', 'EAU', 'INTERNET', 'TELEPHONE', 'SALAIRE',
-        'ACHAT_MARCHANDISE', 'TRANSPORT', 'REPAS', 'AUTRE'
+        'ACHAT_MARCHANDISE', 'TRANSPORT', 'REPAS', 'AVOIR', 'AUTRE'
     ];
     filteredCategories!: Observable<string[]>;
 
