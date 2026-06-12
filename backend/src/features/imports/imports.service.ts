@@ -2301,9 +2301,9 @@ export class ImportsService {
           (numeroFacture === lastNum ? lastDateEmission : null) ||
           new Date();
         const dateEcheance = this.parseDate(row[mapping.dateEcheance]);
-        let montantHT = this.parseAmount(row[mapping.montantHT]);
-        let montantTVA = this.parseAmount(row[mapping.montantTVA]);
-        let montantTTC = this.parseAmount(row[mapping.montantTTC]);
+        let montantHT = Math.abs(this.parseAmount(row[mapping.montantHT]));
+        let montantTVA = Math.abs(this.parseAmount(row[mapping.montantTVA]));
+        let montantTTC = Math.abs(this.parseAmount(row[mapping.montantTTC]));
 
         // Auto-calculate missing financial values (standard 20% TVA rate)
         if (montantTTC > 0 && !montantHT) {

@@ -250,14 +250,8 @@ export class SupplierInvoicesService {
         .filter((e: any) => ['PAYEE', 'ENCAISSE'].includes(e.statut))
         .reduce((sum: number, e: any) => sum + (e.montant || 0), 0);
       
-      const isAvoir = inv.montantTTC < 0;
-      const resteAPayer = isAvoir
-        ? -Math.max(0, Math.round((Math.abs(inv.montantTTC) - totalPaid) * 100) / 100)
-        : Math.max(0, Math.round((inv.montantTTC - totalPaid) * 100) / 100);
-      
-      const acompte = isAvoir
-        ? -Math.round(Math.min(totalPaid, Math.abs(inv.montantTTC)) * 100) / 100
-        : Math.round(Math.min(totalPaid, inv.montantTTC) * 100) / 100;
+      const resteAPayer = Math.max(0, Math.round((inv.montantTTC - totalPaid) * 100) / 100);
+      const acompte = Math.round(Math.min(totalPaid, inv.montantTTC) * 100) / 100;
 
       return { ...inv, resteAPayer, acompte };
     });

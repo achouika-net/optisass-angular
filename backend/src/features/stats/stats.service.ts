@@ -659,7 +659,7 @@ export class StatsService {
       );
 
       // 2. Fetch expenses and payments in parallel
-      const [expenseAgg, ffAgg, paymentsAgg, avoirAgg] = await Promise.all([
+      const [expenseAgg, ffList, paymentsAgg, avoirAgg] = await Promise.all([
         this.prisma.depense.aggregate({
           _sum: { montant: true },
           where: {
@@ -670,14 +670,25 @@ export class StatsService {
             ...centreFilter,
           },
         }),
-        this.prisma.factureFournisseur.aggregate({
-          _sum: { montantHT: true },
+        this.prisma.factureFournisseur.findMany({
           where: {
             dateEmission: { gte: start, lte: end },
             type: { notIn: this.INVENTORY_PURCHASE_TYPES },
             ficheId: null,
             ...centreFilter,
           },
+          select: {
+            numeroFacture: true,
+            montantHT: true,
+            type: true,
+            echeances: {
+              where: {
+                type: 'AVOIR',
+                statut: { in: ['PAYEE', 'ENCAISSE'] }
+              },
+              select: { id: true }
+            }
+          }
         }),
         this.prisma.paiement.aggregate({
           _sum: { montant: true },
@@ -692,9 +703,9 @@ export class StatsService {
             type: 'AVOIR',
             statut: { in: ['PAYEE', 'ENCAISSE'] },
             dateEncaissement: { gte: start, lte: end },
+            factureFournisseurId: null,
             ...(centreId ? {
               OR: [
-                { factureFournisseur: { centreId } },
                 { bonLivraison: { centreId } }
               ]
             } : {})
@@ -724,7 +735,7 @@ export class StatsService {
             cogsMap.set(cat, (cogsMap.get(cat) || 0) + cost);
           });
         }
-        // b. Verres : via BL rattachés
+        // b. Verres : via BL rapports
         if (f.fiche?.bonsLivraison?.length) {
           f.fiche.bonsLivraison.forEach((bl: any) => {
             const cost = multiplier * (bl.montantHT || 0);
@@ -735,19 +746,27 @@ export class StatsService {
         }
       }
 
+      let ffExpenses = 0;
+      ffList.forEach((f: any) => {
+        const isAvoir = f.echeances.length > 0 || f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
+        const amount = Math.abs(f.montantHT || 0);
+        if (isAvoir) {
+          ffExpenses -= amount;
+        } else {
+          ffExpenses += amount;
+        }
+      });
+
       const revenueHT = totalRevenueTTC / 1.2;
       const expenses =
-        (expenseAgg._sum?.montant || 0) + (ffAgg._sum?.montantHT || 0) - (avoirAgg._sum?.montant || 0);
+        (expenseAgg._sum?.montant || 0) + ffExpenses - (avoirAgg._sum?.montant || 0);
       const netProfit = revenueHT - totalCogs - expenses;
 
       // Expense Breakdown logic
       const expensesBreakdownMap = new Map<string, number>();
-      // We can't easily get the breakdown from aggregate, but for now let's just return a generic breakdown or fetch it
-      // For simplicity and speed, let's just return the main values first.
-      // If the user really needs the breakdown table to be populated, I should fetch the lists.
 
       // Let's fetch them to be perfect
-      const [depensesList, ffList, avoirList] = await Promise.all([
+      const [depensesList, ffListForBreakdown, avoirList] = await Promise.all([
         this.prisma.depense.findMany({
           where: {
             date: { gte: start, lte: end },
@@ -765,16 +784,27 @@ export class StatsService {
             ficheId: null,
             ...centreFilter,
           },
-          select: { montantHT: true, type: true },
+          select: {
+            numeroFacture: true,
+            montantHT: true,
+            type: true,
+            echeances: {
+              where: {
+                type: 'AVOIR',
+                statut: { in: ['PAYEE', 'ENCAISSE'] }
+              },
+              select: { id: true }
+            }
+          },
         }),
         this.prisma.echeancePaiement.findMany({
           where: {
             type: 'AVOIR',
             statut: { in: ['PAYEE', 'ENCAISSE'] },
             dateEncaissement: { gte: start, lte: end },
+            factureFournisseurId: null,
             ...(centreId ? {
               OR: [
-                { factureFournisseur: { centreId } },
                 { bonLivraison: { centreId } }
               ]
             } : {})
@@ -790,12 +820,21 @@ export class StatsService {
           (expensesBreakdownMap.get(cat) || 0) + (d.montant || 0),
         );
       });
-      ffList.forEach((f) => {
-        const cat = f.type || 'FACTURE';
-        expensesBreakdownMap.set(
-          cat,
-          (expensesBreakdownMap.get(cat) || 0) + (f.montantHT || 0),
-        );
+      ffListForBreakdown.forEach((f: any) => {
+        const isAvoir = f.echeances.length > 0 || f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
+        const amount = Math.abs(f.montantHT || 0);
+        const cat = isAvoir ? 'AVOIR_FOURNISSEUR' : (f.type || 'FACTURE');
+        if (isAvoir) {
+          expensesBreakdownMap.set(
+            cat,
+            (expensesBreakdownMap.get(cat) || 0) - amount,
+          );
+        } else {
+          expensesBreakdownMap.set(
+            cat,
+            (expensesBreakdownMap.get(cat) || 0) + amount,
+          );
+        }
       });
       avoirList.forEach((e) => {
         const cat = 'AVOIR_FOURNISSEUR';
@@ -919,15 +958,59 @@ export class StatsService {
         vals.expenses += d.montant || 0;
         dataMap.set(label, vals);
       });
+
+      const ff = await this.prisma.factureFournisseur.findMany({
+        where: {
+          dateEmission: { gte: start, lte: end },
+          ...centreFilter,
+        },
+        include: {
+          echeances: {
+            where: {
+              type: 'AVOIR',
+              statut: { in: ['PAYEE', 'ENCAISSE'] }
+            },
+            select: { id: true }
+          }
+        }
+      });
+
+      ff.forEach((f) => {
+        const label =
+          period === 'daily'
+            ? f.dateEmission.toISOString().split('T')[0]
+            : f.dateEmission.toISOString().substring(0, 7);
+
+        const vals = dataMap.get(label) || { revenue: 0, cogs: 0, expenses: 0 };
+
+        const isAvoir = f.echeances.length > 0 || f.numeroFacture.startsWith('AV') || f.numeroFacture.startsWith('av') || f.numeroFacture.startsWith('CN') || f.numeroFacture.startsWith('cn') || f.type?.toUpperCase() === 'AVOIR';
+        const isInventory = this.INVENTORY_PURCHASE_TYPES.includes(f.type || '');
+        const amount = Math.abs(f.montantTTC || f.montantHT || 0);
+
+        if (isInventory) {
+          if (isAvoir) {
+            vals.cogs -= amount;
+          } else {
+            vals.cogs += amount;
+          }
+        } else {
+          if (isAvoir) {
+            vals.expenses -= amount;
+          } else {
+            vals.expenses += amount;
+          }
+        }
+        dataMap.set(label, vals);
+      });
       
       const avoirEcheances = await this.prisma.echeancePaiement.findMany({
         where: {
           type: 'AVOIR',
           statut: { in: ['PAYEE', 'ENCAISSE'] },
           dateEncaissement: { gte: start, lte: end },
+          factureFournisseurId: null,
           ...(centreId ? {
             OR: [
-              { factureFournisseur: { centreId } },
               { bonLivraison: { centreId } }
             ]
           } : {})
@@ -948,7 +1031,7 @@ export class StatsService {
 
       const sortedResult = Array.from(dataMap.entries())
         .map(([label, vals]) => ({
-          month: label, // We keep 'month' key for frontend compatibility even if daily
+          month: label,
           revenue: vals.revenue,
           expenses: vals.cogs + vals.expenses,
           cogs: vals.cogs,
