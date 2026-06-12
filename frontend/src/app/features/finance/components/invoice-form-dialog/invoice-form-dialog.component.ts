@@ -966,14 +966,23 @@ export class InvoiceFormDialogComponent implements OnInit {
 
     private syncBanqueValidator(group: FormGroup, type: string) {
         const banqueCtrl = group.get('banque');
-        if (type === 'ESPECES' || type === 'VIREMENT') {
+        const refCtrl = group.get('reference');
+        if (type === 'ESPECES' || type === 'VIREMENT' || type === 'AVOIR') {
             banqueCtrl?.clearValidators();
-            if (type === 'ESPECES') banqueCtrl?.disable({ emitEvent: false });
-            else banqueCtrl?.enable({ emitEvent: false });
-            group.get('reference')?.setValue(group.get('reference')?.value || '', { emitEvent: false });
+            if (type === 'ESPECES' || type === 'AVOIR') {
+                banqueCtrl?.disable({ emitEvent: false });
+                refCtrl?.disable({ emitEvent: false });
+                
+                banqueCtrl?.setValue('', { emitEvent: false });
+                refCtrl?.setValue('', { emitEvent: false });
+            } else {
+                banqueCtrl?.enable({ emitEvent: false });
+                refCtrl?.enable({ emitEvent: false });
+            }
         } else {
             banqueCtrl?.setValidators([Validators.required]);
             banqueCtrl?.enable({ emitEvent: false });
+            refCtrl?.enable({ emitEvent: false });
         }
         banqueCtrl?.updateValueAndValidity();
     }

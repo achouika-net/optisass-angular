@@ -303,7 +303,7 @@
                                         </mat-form-field>
 
                                         <mat-form-field appearance="outline"
-                                            *ngIf="form.get('directPayment.modePaiement')?.value !== 'ESPECES'">
+                                            *ngIf="form.get('directPayment.modePaiement')?.value !== 'ESPECES' && form.get('directPayment.modePaiement')?.value !== 'AVOIR'">
                                             <mat-label>Date d'échéance</mat-label>
                                             <input aria-label="Input" title="Input" matInput [matDatepicker]="pickerDP" formControlName="dateEcheance">
                                             <mat-datepicker-toggle matIconSuffix
@@ -312,7 +312,7 @@
                                         </mat-form-field>
 
                                         <mat-form-field appearance="outline"
-                                            *ngIf="form.get('directPayment.modePaiement')?.value !== 'ESPECES'">
+                                            *ngIf="form.get('directPayment.modePaiement')?.value !== 'ESPECES' && form.get('directPayment.modePaiement')?.value !== 'AVOIR'">
                                             <mat-label>Banque / Réf</mat-label>
                                             <input matInput formControlName="banque"
                                                 placeholder="Ex: BMCE ou Chèque n°...">
@@ -405,13 +405,13 @@
                                             </mat-form-field>
 
                                             <mat-form-field appearance="outline" class="dense-field"
-                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES' && $any(eg).get('type')?.value !== 'VIREMENT'">
+                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES' && $any(eg).get('type')?.value !== 'VIREMENT' && $any(eg).get('type')?.value !== 'AVOIR'">
                                                 <mat-label>N° Pièce</mat-label>
                                                 <input matInput formControlName="reference" placeholder="N° Chèque/LCN">
                                             </mat-form-field>
 
                                             <mat-form-field appearance="outline" class="dense-field"
-                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES'">
+                                                *ngIf="$any(eg).get('type')?.value !== 'ESPECES' && $any(eg).get('type')?.value !== 'AVOIR'">
                                                 <mat-label>Banque</mat-label>
                                                 <input matInput formControlName="banque" placeholder="Nom de la banque">
                                             </mat-form-field>
