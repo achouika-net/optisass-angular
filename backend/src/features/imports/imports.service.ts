@@ -3571,7 +3571,6 @@ export class ImportsService {
         data: facturesToCreate,
         skipDuplicates: true,
       });
-      results.success += facturesToCreate.length;
     }
 
     if (facturesToUpdate.length > 0) {
