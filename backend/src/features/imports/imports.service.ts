@@ -2211,7 +2211,8 @@ export class ImportsService {
     }
     // --- END DIAGNOSTIC ---
 
-    // --- PRE-SCAN FOR CLIENT AND FICHE DETAILS ---
+    // --- PRE-SCAN FOR CLIENT, FICHE DETAILS & BL GROUPING ---
+    const blGroups = new Map();
     const resolvedHeaderMap = new Map();
     
     let preScanLastSupplier = null;
@@ -2242,6 +2243,23 @@ export class ImportsService {
           row[mapping.numeroFacture] || row[mapping.facture],
         );
         if (!numeroFacture) continue;
+
+        let isBL = false;
+        if (isBLOverride !== undefined && isBLOverride !== null) {
+          isBL =
+            isBLOverride === true ||
+            isBLOverride === 'true' ||
+            isBLOverride === 1;
+        } else {
+          const blVal = row[mapping.isBL];
+          if (blVal !== undefined) {
+            isBL =
+              blVal === true ||
+              blVal === 'true' ||
+              blVal === 1 ||
+              String(blVal).toUpperCase() === 'BL';
+          }
+        }
 
         let clientId: string | null = null;
         let ficheId: string | null = null;
@@ -2332,16 +2350,79 @@ export class ImportsService {
           }
         }
 
+        const key = `${supplier.id}|${numeroFacture}`;
         if (clientId || ficheId) {
-          const key = `${supplier.id}|${numeroFacture}`;
           const existing = resolvedHeaderMap.get(key);
           resolvedHeaderMap.set(key, {
             clientId: clientId || (existing ? existing.clientId : null),
             ficheId: ficheId || (existing ? existing.ficheId : null),
           });
         }
+
+        // Group BL amounts
+        if (isBL) {
+          let montantHT = Math.abs(this.parseAmount(row[mapping.montantHT]));
+          let montantTVA = Math.abs(this.parseAmount(row[mapping.montantTVA]));
+          let montantTTC = Math.abs(this.parseAmount(row[mapping.montantTTC]));
+
+          if (montantTTC > 0 && !montantHT) {
+            montantHT = montantTTC / 1.2;
+            montantTVA = montantTTC - montantHT;
+          } else if (montantHT > 0 && !montantTTC) {
+            montantTTC = montantHT * 1.2;
+            montantTVA = montantTTC - montantHT;
+          } else if (montantHT > 0 && montantTTC > 0 && !montantTVA) {
+            montantTVA = montantTTC - montantHT;
+          }
+
+          if (!blGroups.has(key)) {
+            blGroups.set(key, {
+              clientId: null,
+              ficheId: null,
+              isIdentical: true,
+              totalHT: 0,
+              totalTVA: 0,
+              totalTTC: 0,
+              processedCount: 0,
+              recordId: null,
+              rowAmounts: [],
+              rowHTs: [],
+              rowTVAs: []
+            });
+          }
+
+          const group = blGroups.get(key);
+          group.rowAmounts.push(montantTTC);
+          group.rowHTs.push(montantHT);
+          group.rowTVAs.push(montantTVA);
+        }
       } catch (err) {
         console.error(`[IMPORT-FF-PRE-SCAN] Error on row ${i}: ${err.message}`);
+      }
+    }
+
+    // Post-process blGroups to sum or pick identical amounts and set client/fiche
+    for (const [key, group] of blGroups.entries()) {
+      const header = resolvedHeaderMap.get(key);
+      if (header) {
+        group.clientId = header.clientId;
+        group.ficheId = header.ficheId;
+      }
+
+      if (group.rowAmounts.length > 0) {
+        const firstAmount = group.rowAmounts[0];
+        const allIdentical = group.rowAmounts.every(val => Math.abs(val - firstAmount) < 0.01);
+        group.isIdentical = allIdentical;
+
+        if (allIdentical) {
+          group.totalHT = group.rowHTs[0];
+          group.totalTVA = group.rowTVAs[0];
+          group.totalTTC = group.rowAmounts[0];
+        } else {
+          group.totalHT = group.rowHTs.reduce((sum, val) => sum + val, 0);
+          group.totalTVA = group.rowTVAs.reduce((sum, val) => sum + val, 0);
+          group.totalTTC = group.rowAmounts.reduce((sum, val) => sum + val, 0);
+        }
       }
     }
 
@@ -2484,6 +2565,85 @@ export class ImportsService {
           console.log(
             `[IMPORT-FF] Row ${index}: Missing numeroFacture for BL. Using fallback: ${numeroFacture}`,
           );
+        }
+
+        // --- MERGE DUPLICATE ROWS FOR BL ---
+        if (isBL && numeroFacture) {
+          const cacheKey = `${supplier.id}|${numeroFacture}`;
+          const group = blGroups.get(cacheKey);
+          if (group) {
+            if (group.processedCount === 0) {
+              // First row: create or update the single BL record
+              let dbExisting = await this.prisma.bonLivraison.findFirst({
+                where: { fournisseurId: supplier.id, numeroBL: numeroFacture },
+                include: { echeances: true }
+              });
+
+              let recordId = '';
+              const finalClientId = group.clientId;
+              const finalFicheId = group.ficheId;
+
+              if (dbExisting) {
+                // Update existing BL record
+                await this.prisma.bonLivraison.update({
+                  where: { id: dbExisting.id },
+                  data: {
+                    clientId: dbExisting.clientId || finalClientId,
+                    ficheId: dbExisting.ficheId || finalFicheId,
+                    montantHT: group.totalHT,
+                    montantTVA: group.totalTVA,
+                    montantTTC: group.totalTTC
+                  }
+                });
+                recordId = dbExisting.id;
+              } else {
+                // Create new BL record
+                const record = await this.prisma.bonLivraison.create({
+                  data: {
+                    numeroBL: numeroFacture,
+                    dateEmission,
+                    dateEcheance,
+                    montantHT: group.totalHT,
+                    montantTVA: group.totalTVA,
+                    montantTTC: group.totalTTC,
+                    statut: 'EN_ATTENTE',
+                    type: row[mapping.type] || 'ACHAT_STOCK',
+                    fournisseurId: supplier.id,
+                    centreId: centreId || null,
+                    clientId: finalClientId,
+                    ficheId: finalFicheId,
+                    categorieBL: row[mapping.categorieBL] || null,
+                  },
+                });
+                recordId = record.id;
+
+                // Create payment schedule if paid
+                const rawPaymentMode = row[mapping.modePaiement];
+                const paymentMode = rawPaymentMode ? this.normalizePaymentType(rawPaymentMode) : null;
+                if (paymentMode && paymentMode !== 'NON_REGLE') {
+                  await this.prisma.echeancePaiement.create({
+                    data: {
+                      bonLivraisonId: record.id,
+                      montant: group.totalTTC,
+                      dateEcheance: dateEcheance || dateEmission,
+                      type: paymentMode,
+                      statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : (paymentMode === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
+                      dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
+                    },
+                  });
+                }
+              }
+
+              group.recordId = recordId;
+              group.processedCount++;
+              results.success++;
+            } else {
+              // Subsequent row: skip database insertion
+              group.processedCount++;
+              results.success++;
+            }
+            continue; // Skip the rest of the loop for this row!
+          }
         }
 
         if (!numeroFacture) {
