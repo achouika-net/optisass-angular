@@ -2211,6 +2211,140 @@ export class ImportsService {
     }
     // --- END DIAGNOSTIC ---
 
+    // --- PRE-SCAN FOR CLIENT AND FICHE DETAILS ---
+    const resolvedHeaderMap = new Map();
+    
+    let preScanLastSupplier = null;
+    for (let i = 0; i < data.length; i++) {
+      try {
+        const row = data[i];
+        if (this.isRowEmpty(row, mapping)) continue;
+
+        const nomFournisseur =
+          row[mapping.nomFournisseur] ||
+          row[mapping.fournisseur] ||
+          row[mapping.nom];
+        const codeFournisseur = row[mapping.codeFournisseur];
+
+        let supplier: any = null;
+        if (codeFournisseur || nomFournisseur) {
+          supplier =
+            supplierMap.get(String(codeFournisseur || '').toUpperCase()) ||
+            supplierMap.get(String(nomFournisseur || '').toUpperCase());
+        }
+        if (!supplier && !nomFournisseur && !codeFournisseur && preScanLastSupplier) {
+          supplier = preScanLastSupplier;
+        }
+        if (!supplier) continue;
+        preScanLastSupplier = supplier;
+
+        const numeroFacture = this.normalizeInvoiceNum(
+          row[mapping.numeroFacture] || row[mapping.facture],
+        );
+        if (!numeroFacture) continue;
+
+        let clientId: string | null = null;
+        let ficheId: string | null = null;
+
+        // 1. Direct Fiche Linking (Most accurate)
+        const fNumInput = row[mapping.ficheNumero];
+        if (fNumInput) {
+          const fNumParsed = parseInt(String(fNumInput).replace(/\D/g, ''));
+          if (!isNaN(fNumParsed)) {
+            const fiche = await this.prisma.fiche.findFirst({
+              where: { numero: fNumParsed },
+              include: { client: true },
+            });
+            const f = fiche;
+            if (f && f.client) {
+              ficheId = f.id;
+              clientId = f.clientId;
+            }
+          }
+        }
+
+        // 2. Client ID/Code Linking (Fallback)
+        if (!clientId) {
+          const clientInput = row[mapping.client] || row[mapping.nomClient];
+          if (clientInput) {
+            const client = await this.prisma.client.findFirst({
+              where: {
+                OR: [
+                  { id: String(clientInput) },
+                  { codeClient: String(clientInput) },
+                  {
+                    nom: {
+                      contains: String(clientInput),
+                      mode: 'insensitive',
+                    },
+                  },
+                ],
+              },
+            });
+            if (client) {
+              const c = client;
+              clientId = c.id;
+              const clientFiches = await this.prisma.fiche.findMany({
+                where: { clientId: c.id },
+              });
+
+              if (c && clientFiches.length > 0) {
+                const dateEmission = this.parseDate(row[mapping.dateEmission]) || new Date();
+                let closestFiche = clientFiches[0];
+                let minDiff = Math.abs(
+                  new Date(clientFiches[0].dateCreation).getTime() -
+                    dateEmission.getTime(),
+                );
+
+                for (const f of clientFiches) {
+                  const diff = Math.abs(
+                    new Date(f.dateCreation).getTime() -
+                      dateEmission.getTime(),
+                  );
+                  if (diff < minDiff) {
+                    minDiff = diff;
+                    closestFiche = f;
+                  }
+                }
+                ficheId = closestFiche.id;
+              }
+            }
+          }
+        }
+
+        if (!clientId) {
+          const cCode = row[mapping.codeClient];
+          if (cCode) {
+            clientId = clientCodeMap.get(String(cCode).trim()) || null;
+          }
+          if (clientId && !ficheId) {
+            const dateEmission = this.parseDate(row[mapping.dateEmission]) || new Date();
+            const bestFiche = await this.prisma.fiche.findFirst({
+              where: {
+                clientId: clientId ?? undefined,
+                dateCreation: { lte: dateEmission },
+              },
+              orderBy: { dateCreation: 'desc' },
+            });
+            if (bestFiche) {
+              ficheId = bestFiche.id;
+            }
+          }
+        }
+
+        if (clientId || ficheId) {
+          const key = `${supplier.id}|${numeroFacture}`;
+          const existing = resolvedHeaderMap.get(key);
+          resolvedHeaderMap.set(key, {
+            clientId: clientId || (existing ? existing.clientId : null),
+            ficheId: ficheId || (existing ? existing.ficheId : null),
+          });
+        }
+      } catch (err) {
+        console.error(`[IMPORT-FF-PRE-SCAN] Error on row ${i}: ${err.message}`);
+      }
+    }
+
     for (let index = 0; index < data.length; index++) {
       if (index % 100 === 0) {
         console.log(
@@ -2525,6 +2659,44 @@ export class ImportsService {
               });
               if (bestFiche) {
                 ficheId = bestFiche.id;
+              }
+            }
+          }
+
+          // --- SHARE/INHERIT CLIENT & FICHE FOR DUPLICATES ---
+          if (numeroFacture) {
+            const cacheKey = `${supplier.id}|${numeroFacture.split('_')[0]}`;
+            let cached = resolvedHeaderMap.get(cacheKey) as { clientId: string | null; ficheId: string | null } | undefined;
+
+            if (!clientId && !ficheId) {
+              if (cached && (cached.clientId || cached.ficheId)) {
+                clientId = cached.clientId;
+                ficheId = cached.ficheId;
+              } else {
+                const existingBLWithClient = await this.prisma.bonLivraison.findFirst({
+                  where: {
+                    fournisseurId: supplier.id,
+                    OR: [
+                      { numeroBL: numeroFacture.split('_')[0] },
+                      { numeroBL: { startsWith: `${numeroFacture.split('_')[0]}_` } }
+                    ],
+                    clientId: { not: null },
+                  },
+                  select: { clientId: true, ficheId: true }
+                });
+
+                if (existingBLWithClient) {
+                  clientId = existingBLWithClient.clientId;
+                  ficheId = existingBLWithClient.ficheId;
+                  resolvedHeaderMap.set(cacheKey, { clientId, ficheId });
+                }
+              }
+            } else {
+              if (!cached) {
+                resolvedHeaderMap.set(cacheKey, { clientId, ficheId });
+              } else {
+                cached.clientId = clientId || cached.clientId;
+                cached.ficheId = ficheId || cached.ficheId;
               }
             }
           }
@@ -3179,6 +3351,7 @@ export class ImportsService {
 
     const facturesToCreate: any[] = [];
     const facturesToUpdate: { id: string; data: any }[] = [];
+    const newFacturesMap = new Map();
 
     for (let index = 0; index < data.length; index++) {
       const row = data[index];
@@ -3213,6 +3386,28 @@ export class ImportsService {
         if (!client && nomClient)
           client = clientByName.get(nomClient.toLowerCase().trim()) || null;
 
+        // Auto-create client if not found but we have name or code
+        if (!client && (nomClient || codeClient)) {
+          try {
+            client = await this.prisma.client.create({
+              data: {
+                id: crypto.randomUUID(),
+                nom: nomClient || `Client ${codeClient}`,
+                codeClient: codeClient || undefined,
+                typeClient: 'particulier',
+                statut: 'ACTIF',
+                centreId: centreId || undefined,
+              },
+            });
+            if (client.codeClient) clientByCode.set(client.codeClient, client);
+            if (client.nom) clientByName.set(client.nom.toLowerCase().trim(), client);
+          } catch (createErr) {
+            console.error(`[ImportFactures] Failed to auto-create client: ${createErr.message}`);
+          }
+        }
+
+        let clientId = client ? client.id : null;
+
         // ROBUST NUMERO PARSING
         const rawFicheRef =
           row['Fiche'] || row['fiche'] || row[mapping.fiche_id];
@@ -3225,6 +3420,52 @@ export class ImportsService {
           linkedFiche = ficheLookupMap.get(inputFicheNum);
           if (linkedFiche && linkedFiche.facture) {
             existingFacture = linkedFiche.facture;
+          }
+        }
+
+        // Resolve/create linkedFiche (dossier) if it does not exist
+        if (!existingFacture && !linkedFiche && !isNaN(inputFicheNum)) {
+          // Look up in database directly to be absolutely sure
+          linkedFiche = await this.prisma.fiche.findFirst({
+            where: { numero: inputFicheNum },
+            include: { facture: true },
+          });
+          if (linkedFiche) {
+            ficheLookupMap.set(inputFicheNum, linkedFiche);
+            if (linkedFiche.facture) {
+              existingFacture = linkedFiche.facture;
+            }
+          } else {
+            // Fiche does not exist, let's create a placeholder Fiche (Dossier) for this invoice!
+            try {
+              const rowTTC = parseFloat(String(row[mapping.totalTTC] || 0)) || 0;
+              linkedFiche = await this.prisma.fiche.create({
+                data: {
+                  id: crypto.randomUUID(),
+                  numero: inputFicheNum,
+                  clientId: clientId,
+                  statut: 'livre',
+                  type: 'vente',
+                  content: {},
+                  montantTotal: rowTTC,
+                  montantPaye: rowTTC,
+                },
+              });
+              ficheLookupMap.set(inputFicheNum, linkedFiche);
+            } catch (ficheCreateErr) {
+              console.error(`[ImportFactures] Failed to create Fiche: ${ficheCreateErr.message}`);
+              // Fallback
+              linkedFiche = await this.prisma.fiche.findFirst({
+                where: { numero: inputFicheNum },
+                include: { facture: true },
+              });
+              if (linkedFiche) {
+                ficheLookupMap.set(inputFicheNum, linkedFiche);
+                if (linkedFiche.facture) {
+                  existingFacture = linkedFiche.facture;
+                }
+              }
+            }
           }
         }
 
@@ -3253,7 +3494,7 @@ export class ImportsService {
             factureLookupMap.get(inputFicheNum); // Check robustly parsed fiche number directly
         }
 
-        let clientId = client ? client.id : null;
+        clientId = clientId || (client ? client.id : null);
 
         // Fallback: If no client found in excel mapping, use existing Facture or Fiche's client!
         if (!clientId && existingFacture) clientId = existingFacture.clientId;
@@ -3279,21 +3520,45 @@ export class ImportsService {
         }
 
         if (existingFacture) {
-          // STRICT UPDATE: ONLY update the numero field.
-          // The user specifically asked not to touch amounts, types, or lines.
-          facturesToUpdate.push({
-            id: existingFacture.id,
-            data: {
-              numero: invoiceNumero,
-            },
-          });
+          if (newFacturesMap.has(existingFacture.numero)) {
+            // It's a newly created facture in this batch, update its values directly
+            existingFacture.numero = invoiceNumero;
+          } else {
+            // STRICT UPDATE: ONLY update the numero field.
+            // The user specifically asked not to touch amounts, types, or lines.
+            facturesToUpdate.push({
+              id: existingFacture.id,
+              data: {
+                numero: invoiceNumero,
+              },
+            });
+          }
           results.success++;
         } else {
-          // User said "changer et non pas ajouter". We log a warning if not found.
-          results.failed++;
-          results.errors.push(
-            `Row ${index + 1}: Aucun document correspondant trouvé pour le Dossier ${rawFicheRef || numero}`,
-          );
+          // CREATE NEW FACTURE
+          const newFactureData = {
+            id: crypto.randomUUID(),
+            numero: invoiceNumero,
+            type: 'FACTURE',
+            statut: 'VALIDE',
+            clientId: clientId,
+            ficheId: linkedFiche ? linkedFiche.id : null,
+            centreId: centreId || null,
+            dateEmission: this.parseDate(row[mapping.dateEmission]) || new Date(),
+            totalHT,
+            totalTVA,
+            totalTTC,
+            resteAPayer: totalTTC,
+            lignes: [],
+            proprietes: {},
+          };
+          facturesToCreate.push(newFactureData);
+          factureLookupMap.set(invoiceNumero, newFactureData);
+          newFacturesMap.set(invoiceNumero, newFactureData);
+          if (linkedFiche) {
+            linkedFiche.facture = newFactureData;
+          }
+          results.success++;
         }
       } catch (error) {
         results.failed++;
