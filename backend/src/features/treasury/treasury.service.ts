@@ -259,7 +259,7 @@ export class TreasuryService {
     const allModes: string[] = [];
     for (const m of modes) {
       if (m === 'CHEQUE')
-        allModes.push('CHEQUE', 'ChÃ¨que', 'CHÃQUE', 'ChÃ©que', 'CHÃQUE');
+        allModes.push('CHEQUE', 'Ch�que', 'CH�QUE', 'CH�QUE', 'CHaque', 'CHa^QUE', 'CHa%QUE');
       else if (m === 'LCN') allModes.push('LCN', 'EFFET', 'Effet', 'Traite');
       else if (m === 'ESPECES' || m === 'LIQUIDE')
         allModes.push(
@@ -273,6 +273,8 @@ export class TreasuryService {
           'ESPECE',
         );
       else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
+      else if (m === 'CARTE') allModes.push('CARTE', 'CARTE BANCAIRE', 'CB', 'TPE');
+      else if (m === 'CARTE') allModes.push('CARTE', 'CARTE BANCAIRE', 'CB', 'TPE');
       else if (['PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC'].includes(m))
         allModes.push('PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC');
       else allModes.push(m);
