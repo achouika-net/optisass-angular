@@ -232,8 +232,12 @@ export class TreasuryService {
       whereClause += `AND p.mode IN (${inClause}) `;
     }
 
-    const dateField =
-      filters.dateType === 'EMISSION' ? 'f."dateEmission"' : 'p.date';
+    let dateField = 'p.date';
+      if (filters.dateType === 'EMISSION') {
+        dateField = 'f."dateEmission"';
+      } else if (filters.dateType === 'ECHEANCE') {
+        dateField = 'COALESCE(p."dateEncaissement", p.date)';
+      }
     if (filters.startDate && filters.endDate) {
       sqlParams.push(new Date(filters.startDate), new Date(filters.endDate));
       whereClause += `AND ${dateField} >= $${sqlParams.length - 1} AND ${dateField} <= $${sqlParams.length} `;
