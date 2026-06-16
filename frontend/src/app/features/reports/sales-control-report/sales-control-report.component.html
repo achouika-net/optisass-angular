@@ -402,6 +402,8 @@
                                 <th>Client</th>
                                 <th>Date</th>
                                 <th class="text-right">Total TTC</th>
+                                <th class="text-right">Payé</th>
+                                <th class="text-right">Reste</th>
                                 <th class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -412,6 +414,8 @@
                                 <td>{{ getClientName(invoice) }}</td>
                                 <td>{{ invoice.dateEmission | date:'dd/MM/yyyy' }}</td>
                                 <td class="price-cell">{{ invoice.totalTTC | number:'1.2-2' }}</td>
+                                <td class="price-cell paid">{{ getMontantPaye(invoice) | number:'1.2-2' }}</td>
+                                <td class="price-cell remain">{{ invoice.resteAPayer | number:'1.2-2' }}</td>
                                 <td class="actions-cell">
                                     <div class="action-buttons">
                                         <button type="button" mat-button color="primary" (click)="validateInvoice(invoice)">

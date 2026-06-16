@@ -550,6 +550,8 @@ export class StatsService {
       activeWarehouses,
       fichesBreakdown,
       productsBreakdown,
+      _clientBreakdown,
+      devisBreakdown,
     ] = await Promise.all([
       this.prisma.product.count({
         where: centreId
@@ -582,6 +584,16 @@ export class StatsService {
         by: ['titre'],
         where: centreId ? { centreId } : {},
         _count: { _all: true },
+      }),
+      // DEVIS aggregate: count and total for separate card display
+      this.prisma.facture.aggregate({
+        _sum: { totalTTC: true },
+        _count: { _all: true },
+        where: {
+          type: 'DEVIS',
+          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
+          ...(centreId ? { centreId } : {}),
+        },
       }),
     ]);
 
@@ -627,6 +639,10 @@ export class StatsService {
       conversionRate: conversionMetrics.conversionToFacture,
       fichesStats,
       productsStats,
+      devisStats: {
+        count: Number(devisBreakdown?._count?._all || 0),
+        totalTTC: Number(devisBreakdown?._sum?.totalTTC || 0),
+      },
     };
   }
 
@@ -733,6 +749,37 @@ export class StatsService {
               m.produit?.typeArticle || m.typeArticle || 'MON',
             );
             cogsMap.set(cat, (cogsMap.get(cat) || 0) + cost);
+          });
+        } else {
+          // Fallback to f.lignes for non-glass items
+          const lines = Array.isArray(f.lignes) ? f.lignes : [];
+          lines.forEach((line: any) => {
+            const type = this.normalizeProductType(line.typeArticle || '');
+            if (type === 'VERR') {
+              if (!f.fiche?.bonsLivraison?.length) {
+                const lineVal = (line.totalHT ?? (line.totalTTC || 0) / 1.2);
+                const cost = multiplier * lineVal * 0.30;
+                totalCogs += cost;
+                cogsMap.set('VERR', (cogsMap.get('VERR') || 0) + cost);
+              }
+            } else {
+              const lineVal = (line.totalHT ?? (line.totalTTC || 0) / 1.2);
+              let cost = 0;
+              if (type === 'MON') {
+                cost = lineVal * 0.33;
+              } else if (type === 'LEN') {
+                cost = lineVal * 0.90;
+              } else if (type === 'ACC') {
+                cost = lineVal * 0.58;
+              } else if (type === 'SOL') {
+                cost = lineVal * 0.43;
+              } else {
+                cost = lineVal * 0.33;
+              }
+              const finalCost = multiplier * cost;
+              totalCogs += finalCost;
+              cogsMap.set(type, (cogsMap.get(type) || 0) + finalCost);
+            }
           });
         }
         // b. Verres : via BL rapports
@@ -931,19 +978,37 @@ export class StatsService {
         vals.revenue += (multiplier * (f.totalTTC || 0)) / 1.2;
 
         // COGS
+        let invoiceCogs = 0;
         if (f.mouvementsStock?.length) {
-          vals.cogs +=
-            multiplier *
-            f.mouvementsStock.reduce(
-              (s, m) => s + (m.prixAchatUnitaire || 0),
-              0,
-            );
+          invoiceCogs += f.mouvementsStock.reduce(
+            (s, m) => s + (m.prixAchatUnitaire || 0),
+            0,
+          );
+        } else {
+          // Fallback to f.lignes
+          const lines = Array.isArray(f.lignes) ? f.lignes : [];
+          lines.forEach((line: any) => {
+            const type = this.normalizeProductType(line.typeArticle || '');
+            if (type === 'VERR') {
+              if (!f.fiche?.bonsLivraison?.length) {
+                const lineVal = (line.totalHT ?? (line.totalTTC || 0) / 1.2);
+                invoiceCogs += lineVal * 0.30;
+              }
+            } else {
+              const lineVal = (line.totalHT ?? (line.totalTTC || 0) / 1.2);
+              let ratio = 0.33;
+              if (type === 'MON') ratio = 0.33;
+              else if (type === 'LEN') ratio = 0.90;
+              else if (type === 'ACC') ratio = 0.58;
+              else if (type === 'SOL') ratio = 0.43;
+              invoiceCogs += lineVal * ratio;
+            }
+          });
         }
         if (f.fiche?.bonsLivraison?.length) {
-          vals.cogs +=
-            multiplier *
-            f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
+          invoiceCogs += f.fiche.bonsLivraison.reduce((s, bl) => s + (bl.montantHT || 0), 0);
         }
+        vals.cogs += multiplier * invoiceCogs;
 
         dataMap.set(label, vals);
       });
@@ -1121,6 +1186,59 @@ export class StatsService {
             statut: f.type === 'AVOIR' ? 'AVOIR' : 'VALIDE',
             source: m.motif === 'RETOUR' ? 'COGS_RETOUR' : 'COGS_REEL_STOCK',
           });
+        });
+      } else {
+        // Fallback to f.lignes for non-glass items
+        const lines = Array.isArray(f.lignes) ? f.lignes : [];
+        lines.forEach((line: any) => {
+          const type = this.normalizeProductType(line.typeArticle || '');
+          if (type === 'VERR') {
+            if (!f.fiche?.bonsLivraison?.length) {
+              const lineVal = (line.totalHT ?? (line.totalTTC || 0) / 1.2);
+              const cost = multiplier * lineVal * 0.30;
+              results.push({
+                id: `line-${f.id}-verr`,
+                date: f.dateEmission,
+                libelle: `COGS (Verres - Est.): [Vente ${f.numero}]`,
+                fournisseur: 'ESTIMATION',
+                type: 'COGS',
+                montant: cost,
+                statut: f.type === 'AVOIR' ? 'AVOIR' : 'VALIDE',
+                source: 'COGS_EST_VERR',
+              });
+            }
+          } else {
+            const lineVal = (line.totalHT ?? (line.totalTTC || 0) / 1.2);
+            let cost = 0;
+            let libellePrefix = 'COGS';
+            if (type === 'MON') {
+              cost = lineVal * 0.33;
+              libellePrefix = 'COGS (Monture - Est.)';
+            } else if (type === 'LEN') {
+              cost = lineVal * 0.90;
+              libellePrefix = 'COGS (Lentille - Est.)';
+            } else if (type === 'ACC') {
+              cost = lineVal * 0.58;
+              libellePrefix = 'COGS (Accessoire - Est.)';
+            } else if (type === 'SOL') {
+              cost = lineVal * 0.43;
+              libellePrefix = 'COGS (Solaire - Est.)';
+            } else {
+              cost = lineVal * 0.33;
+              libellePrefix = `COGS (${type} - Est.)`;
+            }
+            const finalCost = multiplier * cost;
+            results.push({
+              id: `line-${f.id}-${type}`,
+              date: f.dateEmission,
+              libelle: `${libellePrefix}: [Vente ${f.numero}]`,
+              fournisseur: 'ESTIMATION',
+              type: 'COGS',
+              montant: finalCost,
+              statut: f.type === 'AVOIR' ? 'AVOIR' : 'VALIDE',
+              source: 'COGS_EST_LINE',
+            });
+          }
         });
       }
 
@@ -1372,7 +1490,19 @@ export class StatsService {
               (acc: number, bl: any) => acc + (bl.montantHT || 0),
               0,
             ) || 0;
-          existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
+          if (blTotalCost > 0) {
+            existing.purchaseTotal += (lineVal / glassLinesTotal) * blTotalCost;
+          } else {
+            existing.purchaseTotal += Math.abs(proportionalHT) * 0.30;
+          }
+        } else {
+          // Fallback based on catalog averages!
+          let ratio = 0.33;
+          if (type === 'MON') ratio = 0.33;
+          else if (type === 'LEN') ratio = 0.90;
+          else if (type === 'ACC') ratio = 0.58;
+          else if (type === 'SOL') ratio = 0.43;
+          existing.purchaseTotal += Math.abs(proportionalHT) * ratio;
         }
 
         productMap.set(key, existing);

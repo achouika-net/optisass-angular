@@ -535,7 +535,7 @@ model BonLivraison {
   echeances            EcheancePaiement[]
   mouvementsStock      MouvementStock[]
 
-  @@unique([fournisseurId, numeroBL])
+  
   @@index([dateEmission])
   @@index([centreId])
   @@index([fournisseurId])

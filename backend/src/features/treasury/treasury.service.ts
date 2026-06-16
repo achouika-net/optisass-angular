@@ -76,20 +76,20 @@ export class TreasuryService {
 
   private readonly PAID_STATUSES = [
     'ENCAISSE',
-    'ENCAISSÉ',
-    'ENCAISSÉE',
+    'ENCAISSÃ',
+    'ENCAISSÃE',
     'PAYE',
-    'PAYÉ',
+    'PAYÃ',
     'PAYEE',
-    'PAYÉE',
+    'PAYÃE',
     'VALIDE',
-    'VALIDÉ',
-    'VALIDÉE',
+    'VALIDÃ',
+    'VALIDÃE',
     'SOLDE',
-    'SOLDÉ',
-    'SOLDÉE',
+    'SOLDÃ',
+    'SOLDÃE',
     'DECAISSE',
-    'DÉCAISSÉ',
+    'DÃCAISSÃ',
     'DECAISSEMENT',
   ];
 
@@ -259,17 +259,17 @@ export class TreasuryService {
     const allModes: string[] = [];
     for (const m of modes) {
       if (m === 'CHEQUE')
-        allModes.push('CHEQUE', 'Chèque', 'CHÈQUE', 'Chéque', 'CHÉQUE');
+        allModes.push('CHEQUE', 'ChÃ¨que', 'CHÃQUE', 'ChÃ©que', 'CHÃQUE');
       else if (m === 'LCN') allModes.push('LCN', 'EFFET', 'Effet', 'Traite');
       else if (m === 'ESPECES' || m === 'LIQUIDE')
         allModes.push(
           'ESPECES',
-          'Espèces',
+          'EspÃ¨ces',
           'Liquide',
           'CASH',
           'LIQUIDE',
-          'ESPÈCES',
-          'ESPÈCE',
+          'ESPÃCES',
+          'ESPÃCE',
           'ESPECE',
         );
       else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
@@ -289,31 +289,42 @@ export class TreasuryService {
   ) {
     const normalizedCentreId =
       centreId && centreId !== '' ? centreId : undefined;
-    const startStr =
-      startDateStr || `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endStr =
-      endDateStr ||
-      `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    const startDate = new Date(startStr);
-    const endDate = new Date(endStr);
+    const isPeriodAll = month === 0 || isNaN(month) || month < 1 || month > 12;
+    let startDate: Date | undefined = undefined;
+    let endDate: Date | undefined = undefined;
+    let startStr: string | undefined = startDateStr;
+    let endStr: string | undefined = endDateStr;
+    let hasValidDates = false;
+
+    if (!isPeriodAll || (startDateStr && endDateStr)) {
+      startStr = startDateStr || `${year}-${String(month).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      endStr =
+        endDateStr ||
+        `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      startDate = new Date(startStr);
+      endDate = new Date(endStr);
+      if (startDate && !isNaN(startDate.getTime()) && endDate && !isNaN(endDate.getTime())) {
+        hasValidDates = true;
+      }
+    }
 
     const paidStatuses = [
       'ENCAISSE',
-      'ENCAISSÉ',
-      'ENCAISSÉE',
+      'ENCAISSÃ',
+      'ENCAISSÃE',
       'PAYE',
-      'PAYÉ',
+      'PAYÃ',
       'PAYEE',
-      'PAYÉE',
+      'PAYÃE',
       'VALIDE',
-      'VALIDÉ',
-      'VALIDÉE',
+      'VALIDÃ',
+      'VALIDÃE',
       'SOLDE',
-      'SOLDÉ',
-      'SOLDÉE',
+      'SOLDÃ',
+      'SOLDÃE',
       'DECAISSE',
-      'DÉCAISSÉ',
+      'DÃCAISSÃ',
       'DECAISSEMENT',
     ];
     const pendingStatuses = [
@@ -323,11 +334,13 @@ export class TreasuryService {
       'DEPOSE',
     ];
 
+    const dateFilter = hasValidDates ? { gte: startDate, lte: endDate } : undefined;
+
     // 1. Incomings (Paiements)
     const inStats = await this.prisma.paiement.aggregate({
       where: {
         facture: { centreId: normalizedCentreId },
-        date: { gte: startDate, lte: endDate },
+        ...(dateFilter ? { date: dateFilter } : {}),
       },
       _sum: { montant: true },
       _count: { _all: true },
@@ -336,7 +349,7 @@ export class TreasuryService {
     const inPaidStats = await this.prisma.paiement.aggregate({
       where: {
         facture: { centreId: normalizedCentreId },
-        date: { gte: startDate, lte: endDate },
+        ...(dateFilter ? { date: dateFilter } : {}),
         statut: { in: paidStatuses },
       },
       _sum: { montant: true },
@@ -345,7 +358,7 @@ export class TreasuryService {
     const inPendingStats = await this.prisma.paiement.aggregate({
       where: {
         facture: { centreId: normalizedCentreId },
-        date: { gte: startDate, lte: endDate },
+        ...(dateFilter ? { date: dateFilter } : {}),
         statut: { in: pendingStatuses },
       },
       _sum: { montant: true },
@@ -354,10 +367,10 @@ export class TreasuryService {
     const inCashStats = await this.prisma.paiement.aggregate({
       where: {
         facture: { centreId: normalizedCentreId },
-        date: { gte: startDate, lte: endDate },
+        ...(dateFilter ? { date: dateFilter } : {}),
         statut: { in: paidStatuses },
         mode: {
-          in: ['ESPECES', 'LIQUIDE', 'CASH', 'ESPÈCES', 'ESPÈCE', 'ESPECE'],
+          in: ['ESPECES', 'LIQUIDE', 'CASH', 'ESPÃCES', 'ESPÃCE', 'ESPECE'],
         },
       },
       _sum: { montant: true },
@@ -366,7 +379,7 @@ export class TreasuryService {
     const inCardStats = await this.prisma.paiement.aggregate({
       where: {
         facture: { centreId: normalizedCentreId },
-        date: { gte: startDate, lte: endDate },
+        ...(dateFilter ? { date: dateFilter } : {}),
         statut: { in: paidStatuses },
         mode: { in: ['CARTE', 'CARTE BANCAIRE', 'CB', 'TPE'] },
       },
@@ -376,11 +389,51 @@ export class TreasuryService {
     const inPecStats = await this.prisma.paiement.aggregate({
       where: {
         facture: { centreId: normalizedCentreId },
-        date: { gte: startDate, lte: endDate },
+        ...(dateFilter ? { date: dateFilter } : {}),
         mode: { in: ['PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC'] },
       },
       _sum: { montant: true },
       _count: { _all: true },
+    });
+
+    const inChequeStats = await this.prisma.paiement.aggregate({
+      where: {
+        facture: { centreId: normalizedCentreId },
+        ...(dateFilter ? { date: dateFilter } : {}),
+        statut: { in: paidStatuses },
+        mode: { in: ['CHEQUE', 'CH\u00C8QUE', 'CH\u00CAQUE', 'CH\u00C9QUE', 'CH^QUE'] },
+      },
+      _sum: { montant: true },
+    });
+
+    const inLCNStats = await this.prisma.paiement.aggregate({
+      where: {
+        facture: { centreId: normalizedCentreId },
+        ...(dateFilter ? { date: dateFilter } : {}),
+        statut: { in: paidStatuses },
+        mode: { in: ['LCN', 'EFFET', 'EFFET LCN', 'TRAITE'] },
+      },
+      _sum: { montant: true },
+    });
+
+    const inVirementStats = await this.prisma.paiement.aggregate({
+      where: {
+        facture: { centreId: normalizedCentreId },
+        ...(dateFilter ? { date: dateFilter } : {}),
+        statut: { in: paidStatuses },
+        mode: { in: ['VIREMENT'] },
+      },
+      _sum: { montant: true },
+    });
+
+    const inGesteStats = await this.prisma.paiement.aggregate({
+      where: {
+        facture: { centreId: normalizedCentreId },
+        ...(dateFilter ? { date: dateFilter } : {}),
+        statut: { in: paidStatuses },
+        mode: { in: ['GESTE COMMERCIAL', 'GESTE'] },
+      },
+      _sum: { montant: true },
     });
 
     // 2. Outgoings (Depenses & Echeances)
@@ -408,7 +461,7 @@ export class TreasuryService {
         SELECT 
           COALESCE(SUM(montant), 0)::float as total, 
           COALESCE(SUM(CASE WHEN statut IN (${this.getPaidStatusesSQL()}) THEN montant ELSE 0 END), 0)::float as paid,
-          COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'REMIS', 'DÉPOSÉ') THEN montant ELSE 0 END), 0)::float as remis,
+          COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'REMIS', 'DÃPOSÃ') THEN montant ELSE 0 END), 0)::float as remis,
           COALESCE(SUM(CASE WHEN statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS') THEN montant ELSE 0 END), 0)::float as pending
         FROM (${outEcheance.query}) as c
       `,
@@ -466,6 +519,10 @@ export class TreasuryService {
         .map(([name, value]) => ({ name, value })),
       incomingCash: Number(inCashStats._sum?.montant || 0),
       incomingCard: Number(inCardStats._sum?.montant || 0),
+      incomingCheque: Number(inChequeStats._sum?.montant || 0),
+      incomingLCN: Number(inLCNStats._sum?.montant || 0),
+      incomingVirement: Number(inVirementStats._sum?.montant || 0),
+      incomingGesteCommercial: Number(inGesteStats._sum?.montant || 0),
       incomingPriseEnCharge: Number(inPecStats._sum?.montant || 0),
       countPriseEnCharge: Number((inPecStats._count as any)?._all || 0),
       alerts: await this.getPendingAlerts(normalizedCentreId),
@@ -486,7 +543,7 @@ export class TreasuryService {
           COALESCE(SUM(montant), 0)::float as "totalTTC", 
           COALESCE(SUM("montantHT"), 0)::float as "totalHT", 
           COALESCE(SUM(CASE WHEN statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON', 'A_PAYER') THEN montant ELSE 0 END), 0)::float as "inHand", 
-          COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'REMIS', 'DÉPOSÉ') THEN montant ELSE 0 END), 0)::float as "deposited",
+          COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'REMIS', 'DÃPOSÃ') THEN montant ELSE 0 END), 0)::float as "deposited",
           COALESCE(SUM(CASE WHEN statut IN (${this.getPaidStatusesSQL()}) THEN montant ELSE 0 END), 0)::float as "paid" 
         FROM (${sqlBase.query}) as c
       `,
@@ -539,7 +596,7 @@ export class TreasuryService {
           COUNT(*)::int as total, 
           COALESCE(SUM(montant), 0)::float as "totalTTC", 
           COALESCE(SUM(CASE WHEN statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON') THEN montant ELSE 0 END), 0)::float as "inHand", 
-          COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'REMIS', 'DÉPOSÉ') THEN montant ELSE 0 END), 0)::float as "deposited",
+          COALESCE(SUM(CASE WHEN statut IN ('REMIS_EN_BANQUE', 'DEPOSE', 'REMIS', 'DÃPOSÃ') THEN montant ELSE 0 END), 0)::float as "deposited",
           COALESCE(SUM(CASE WHEN statut IN (${this.getPaidStatusesSQL()}) THEN montant ELSE 0 END), 0)::float as "paid" 
         FROM (${sqlBase.query}) as c
       `,
@@ -768,7 +825,7 @@ export class TreasuryService {
     const next48h = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
     // Tous les types de cheques avec leurs variantes d'encodage
-    const chequeTypes = ["CHEQUE","LCN","Chèque","Chéque","Ch├¿que","cheque","Cheque"];
+    const chequeTypes = ["CHEQUE","LCN","ChÃ¨que","ChÃ©que","ChâÂ¿que","cheque","Cheque"];
 
     const baseWhere: any = {
       // Pas de borne inferieure : inclure TOUS les elements en retard + 48h a venir
@@ -844,7 +901,7 @@ export class TreasuryService {
   private cleanText(text: string): string {
     if (!text) return 'N/A';
     return text
-      .replace(/r[\W_]*glement/gi, 'Règlement')
+      .replace(/r[\W_]*glement/gi, 'RÃ¨glement')
       .replace(/[^\x20-\x7E\xA0-\xFF]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 const XLSX = require('xlsx');
@@ -594,6 +594,7 @@ export class ImportsService {
     centreId?: string,
     importType: string = 'fiches',
   ) {
+    this.invoiceNumbersForChunk = new Set<string>();
     const results = {
       success: 0,
       updated: 0,
@@ -905,8 +906,12 @@ export class ImportsService {
 
         let key = '';
         if (fid && fid !== '0' && fid !== 0) {
-          // [FIX] Group strictly by Fiche ID. Remove "NOFID" merging that caused row loss.
-          key = `FID_${fid}`;
+          // [FIX] Group by Fiche ID + Client identifier to handle multi-client BLs
+          // A single BL (Bon de Livraison) can be shared between multiple clients
+          const clientCodeForKey = String(
+            row[mapping.codeClient] || row[mapping.nom] || ''
+          ).trim().toLowerCase();
+          key = `FID_${fid}_CLI_${clientCodeForKey}`;
         } else {
           // If no Fiche ID, every row is a unique Fiche to prevent data loss
           key = `UNIQUE_${idx}`;
@@ -1131,14 +1136,14 @@ export class ImportsService {
               },
               epOD: parseNum(pm.ep_od),
               epOG: parseNum(pm.ep_og),
-              dateOrdonnance: parseDate(pm.date_ordonnance),
+              dateOrdonnance: parseDate(pm.date_ordonnance) || parseDate(pm.date) || parseDate(pm.Date) || parseDate(pm.dateCreation),
               nomMedecin: pm.nom_medecin,
             },
             equipements: [],
             notes: pm.notes,
             fournisseur: pm.fournisseur,
             factureFournisseur: pm.facture_fournisseur,
-            dateLivraisonEstimee: parseDate(pm.dateLivraisonEstimee),
+            dateLivraisonEstimee: parseDate(pm.dateLivraisonEstimee) || parseDate(pm.dateliv),
           };
 
           // Add Monture if present
@@ -1468,23 +1473,21 @@ export class ImportsService {
           const totalAmount = parseNum(pm.montantTotal) || 0;
 
           // --- LOGICAL MAPPING FOR DOCUMENT TYPE ---
-          const rawValide = String(pm.valide ?? '')
-            .toLowerCase()
-            .trim();
-          const rawFacture = String(pm.facture ?? '')
-            .toLowerCase()
-            .trim();
+          let isValide = true;
+          if (mapping.valide) {
+            const rawValide = String(pm.valide ?? '')
+              .toLowerCase()
+              .trim();
+            isValide = ['vrai', 'true', 'oui', 'yes', '1', 'valide', 'validé', 'valider'].includes(rawValide) || pm.valide === true;
+          }
 
-          const isFauxValide =
-            ['faux', 'false', 'non', 'no', '0'].includes(rawValide) ||
-            pm.valide === false;
-
-          // Default to true. Only DEVIS if explicitly FALSE.
-          const isValide = !isFauxValide;
-
-          const isFacture =
-            ['vrai', 'true', 'oui', 'yes', '1'].includes(rawFacture) ||
-            pm.facture === true;
+          let isFacture = false;
+          if (mapping.facture) {
+            const rawFacture = String(pm.facture ?? '')
+              .toLowerCase()
+              .trim();
+            isFacture = ['vrai', 'true', 'oui', 'yes', '1', 'facture', 'facturée', 'facturee'].includes(rawFacture) || pm.facture === true;
+          }
 
           const hasInvoiceNum = !!(pm.numero || pm.fiche_id || pm.numero_fiche);
 
@@ -1510,8 +1513,8 @@ export class ImportsService {
             }
           }
 
-          // We only create an invoice record if it's Valide! Devis stay in Fiche only.
-          const shouldCreateInvoice = isValide;
+          // [FIX] Always create a record - DEVIS type for non-validated so they appear in stats
+          const shouldCreateInvoice = true;
 
           // Pre-generate IDs
           const ficheId = crypto.randomUUID();
@@ -1535,7 +1538,8 @@ export class ImportsService {
             clientId: clientId,
             type: finalType,
             statut: String(pm.statut || 'livre').toLowerCase(),
-            dateCreation: parseDate(pm.dateCreation) || new Date(),
+            dateCreation: parseDate(pm.dateCreation) || parseDate(pm.date) || parseDate(pm.Date) || new Date(),
+              dateLivraisonEstimee: parseDate(pm.dateLivraisonEstimee) || parseDate(pm.dateliv),
             montantTotal: totalAmount,
             montantPaye: totalPaye,
             content: content,
@@ -1592,11 +1596,12 @@ export class ImportsService {
               // PRESERVE the full number string (e.g. 123/2024) to ensure uniqueness in the String-type Facture table
               const cleanNum = String(invoiceNumero).trim();
 
-              // Apply the calculated prefix ONLY if docType isn't DEVIS
-              if (docType !== 'DEVIS' && !cleanNum.startsWith(finalPrefix)) {
+              // Apply prefix based on docType
+              if (docType === 'DEVIS') {
+                // DEVIS get a Devis- prefix to avoid number conflicts with FACTURE/BC
+                invoiceNumero = `Devis-${cleanNum}`;
+              } else if (!cleanNum.startsWith(finalPrefix)) {
                 invoiceNumero = `${finalPrefix}${cleanNum}`;
-              } else {
-                invoiceNumero = cleanNum;
               }
             }
 
@@ -1614,7 +1619,7 @@ export class ImportsService {
                 clientId: clientId,
                 ficheId: ficheObject.id, // CRITICAL FIX: Use the potentially reassigned ID
                 centreId: centreId || null,
-                dateEmission: parseDate(pm.dateCreation) || new Date(),
+                dateEmission: parseDate(pm.dateEmission) || parseDate(pm.dateCreation) || new Date(),
                 totalHT: totalAmount / 1.2,
                 totalTVA: totalAmount - totalAmount / 1.2,
                 totalTTC: totalAmount,
@@ -1824,8 +1829,8 @@ export class ImportsService {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           date: f.dateEmission || new Date(),
           mode: 'ESPECES', // Assuming cash for acompte import
-          statut: 'ENCAISSE',
-          notes: 'Acompte Import (Délivrance)',
+            statut: 'ENCAISSE',
+            notes: 'Acompte Import (D�livrance)',
         });
       }
     }
@@ -2212,7 +2217,7 @@ export class ImportsService {
     // --- END DIAGNOSTIC ---
 
     // --- PRE-SCAN FOR CLIENT, FICHE DETAILS & BL GROUPING ---
-    const blGroups = new Map();
+    // const blGroups = new Map();
     const resolvedHeaderMap = new Map();
     
     let preScanLastSupplier = null;
@@ -2359,72 +2364,13 @@ export class ImportsService {
           });
         }
 
-        // Group BL amounts
-        if (isBL) {
-          let montantHT = Math.abs(this.parseAmount(row[mapping.montantHT]));
-          let montantTVA = Math.abs(this.parseAmount(row[mapping.montantTVA]));
-          let montantTTC = Math.abs(this.parseAmount(row[mapping.montantTTC]));
-
-          if (montantTTC > 0 && !montantHT) {
-            montantHT = montantTTC / 1.2;
-            montantTVA = montantTTC - montantHT;
-          } else if (montantHT > 0 && !montantTTC) {
-            montantTTC = montantHT * 1.2;
-            montantTVA = montantTTC - montantHT;
-          } else if (montantHT > 0 && montantTTC > 0 && !montantTVA) {
-            montantTVA = montantTTC - montantHT;
-          }
-
-          if (!blGroups.has(key)) {
-            blGroups.set(key, {
-              clientId: null,
-              ficheId: null,
-              isIdentical: true,
-              totalHT: 0,
-              totalTVA: 0,
-              totalTTC: 0,
-              processedCount: 0,
-              recordId: null,
-              rowAmounts: [],
-              rowHTs: [],
-              rowTVAs: []
-            });
-          }
-
-          const group = blGroups.get(key);
-          group.rowAmounts.push(montantTTC);
-          group.rowHTs.push(montantHT);
-          group.rowTVAs.push(montantTVA);
-        }
+        // Group BL amounts - DISABLED
       } catch (err) {
         console.error(`[IMPORT-FF-PRE-SCAN] Error on row ${i}: ${err.message}`);
       }
     }
 
-    // Post-process blGroups to sum or pick identical amounts and set client/fiche
-    for (const [key, group] of blGroups.entries()) {
-      const header = resolvedHeaderMap.get(key);
-      if (header) {
-        group.clientId = header.clientId;
-        group.ficheId = header.ficheId;
-      }
-
-      if (group.rowAmounts.length > 0) {
-        const firstAmount = group.rowAmounts[0];
-        const allIdentical = group.rowAmounts.every(val => Math.abs(val - firstAmount) < 0.01);
-        group.isIdentical = allIdentical;
-
-        if (allIdentical) {
-          group.totalHT = group.rowHTs[0];
-          group.totalTVA = group.rowTVAs[0];
-          group.totalTTC = group.rowAmounts[0];
-        } else {
-          group.totalHT = group.rowHTs.reduce((sum, val) => sum + val, 0);
-          group.totalTVA = group.rowTVAs.reduce((sum, val) => sum + val, 0);
-          group.totalTTC = group.rowAmounts.reduce((sum, val) => sum + val, 0);
-        }
-      }
-    }
+    // Post-process blGroups - DISABLED
 
     for (let index = 0; index < data.length; index++) {
       if (index % 100 === 0) {
@@ -2567,84 +2513,7 @@ export class ImportsService {
           );
         }
 
-        // --- MERGE DUPLICATE ROWS FOR BL ---
-        if (isBL && numeroFacture) {
-          const cacheKey = `${supplier.id}|${numeroFacture}`;
-          const group = blGroups.get(cacheKey);
-          if (group) {
-            if (group.processedCount === 0) {
-              // First row: create or update the single BL record
-              let dbExisting = await this.prisma.bonLivraison.findFirst({
-                where: { fournisseurId: supplier.id, numeroBL: numeroFacture },
-                include: { echeances: true }
-              });
-
-              let recordId = '';
-              const finalClientId = group.clientId;
-              const finalFicheId = group.ficheId;
-
-              if (dbExisting) {
-                // Update existing BL record
-                await this.prisma.bonLivraison.update({
-                  where: { id: dbExisting.id },
-                  data: {
-                    clientId: dbExisting.clientId || finalClientId,
-                    ficheId: dbExisting.ficheId || finalFicheId,
-                    montantHT: group.totalHT,
-                    montantTVA: group.totalTVA,
-                    montantTTC: group.totalTTC
-                  }
-                });
-                recordId = dbExisting.id;
-              } else {
-                // Create new BL record
-                const record = await this.prisma.bonLivraison.create({
-                  data: {
-                    numeroBL: numeroFacture,
-                    dateEmission,
-                    dateEcheance,
-                    montantHT: group.totalHT,
-                    montantTVA: group.totalTVA,
-                    montantTTC: group.totalTTC,
-                    statut: 'EN_ATTENTE',
-                    type: row[mapping.type] || 'ACHAT_STOCK',
-                    fournisseurId: supplier.id,
-                    centreId: centreId || null,
-                    clientId: finalClientId,
-                    ficheId: finalFicheId,
-                    categorieBL: row[mapping.categorieBL] || null,
-                  },
-                });
-                recordId = record.id;
-
-                // Create payment schedule if paid
-                const rawPaymentMode = row[mapping.modePaiement];
-                const paymentMode = rawPaymentMode ? this.normalizePaymentType(rawPaymentMode) : null;
-                if (paymentMode && paymentMode !== 'NON_REGLE') {
-                  await this.prisma.echeancePaiement.create({
-                    data: {
-                      bonLivraisonId: record.id,
-                      montant: group.totalTTC,
-                      dateEcheance: dateEcheance || dateEmission,
-                      type: paymentMode,
-                      statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : (paymentMode === 'ESPECES' ? 'ENCAISSE' : 'PAYEE'),
-                      dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
-                    },
-                  });
-                }
-              }
-
-              group.recordId = recordId;
-              group.processedCount++;
-              results.success++;
-            } else {
-              // Subsequent row: skip database insertion
-              group.processedCount++;
-              results.success++;
-            }
-            continue; // Skip the rest of the loop for this row!
-          }
-        }
+        // Merge duplicate rows for BL - DISABLED
 
         if (!numeroFacture) {
           if (centreId && montantTTC > 0) {
@@ -2685,29 +2554,22 @@ export class ImportsService {
         }
 
         // --- UNIQUE CONSTRAINT WORKAROUND (1:1 MAPPING - v2) ---
-        // Every row MUST be a separate record. If the number exists in DB, add suffix.
+        // Every row MUST be a separate record. If the number exists in DB, add suffix (only for factures).
         let finalNum = numeroFacture;
         let dupIndex = 1;
-        while (true) {
-          const exists = isBL
-            ? await this.prisma.bonLivraison.findUnique({
-                where: {
-                  fournisseurId_numeroBL: {
-                    fournisseurId: supplier.id,
-                    numeroBL: finalNum,
-                  },
+        if (!isBL) {
+          while (true) {
+            const exists = await this.prisma.factureFournisseur.findUnique({
+              where: {
+                fournisseurId_numeroFacture: {
+                  fournisseurId: supplier.id,
+                  numeroFacture: finalNum,
                 },
-              })
-            : await this.prisma.factureFournisseur.findUnique({
-                where: {
-                  fournisseurId_numeroFacture: {
-                    fournisseurId: supplier.id,
-                    numeroFacture: finalNum,
-                  },
-                },
-              });
-          if (!exists) break;
-          finalNum = `${numeroFacture}_${dupIndex++}`;
+              },
+            });
+            if (!exists) break;
+            finalNum = `${numeroFacture}_${dupIndex++}`;
+          }
         }
         if (finalNum !== numeroFacture) {
           console.log(
@@ -3350,6 +3212,7 @@ export class ImportsService {
   }
 
   async importFacturesVentes(data: any[], mapping: any, centreId?: string) {
+    this.invoiceNumbersForChunk = new Set<string>();
     const results = {
       success: 0,
       updated: 0,
@@ -3433,6 +3296,13 @@ export class ImportsService {
             },
           ],
         },
+        include: {
+          paiements: {
+            select: {
+              montant: true
+            }
+          }
+        }
       });
       existingFactures.push(...facturesChunk);
     }
@@ -3478,8 +3348,18 @@ export class ImportsService {
             id: true,
             numero: true,
             totalTTC: true,
+            totalHT: true,
+            totalTVA: true,
+            dateEmission: true,
             resteAPayer: true,
             clientId: true,
+            type: true,
+            statut: true,
+            paiements: {
+              select: {
+                montant: true
+              }
+            }
           },
         },
       },
@@ -3679,18 +3559,51 @@ export class ImportsService {
           invoiceNumero = `Fact-${invoiceNumero}`;
         }
 
+        const dateEmission = this.parseDate(row[mapping.dateEmission]);
+
         if (existingFacture) {
-          if (newFacturesMap.has(existingFacture.numero)) {
+          const activeFacture = existingFacture as any;
+          
+          // PRESERVE existing amounts if they are already defined and > 0
+          const finalTotalTTC = activeFacture.totalTTC > 0 ? Number(activeFacture.totalTTC) : totalTTC;
+          const finalTotalHT = activeFacture.totalHT > 0 ? Number(activeFacture.totalHT) : totalHT;
+          const finalTotalTVA = activeFacture.totalTVA > 0 ? Number(activeFacture.totalTVA) : totalTVA;
+
+          const totalPaye = (activeFacture.paiements || []).reduce((sum, p) => sum + p.montant, 0);
+          const resteAPayer = Math.max(0, finalTotalTTC - totalPaye);
+          let finalStatut = activeFacture.statut;
+          if (activeFacture.type === 'FACTURE' && resteAPayer <= 0) {
+            finalStatut = 'PAYEE';
+          } else if (activeFacture.type === 'FACTURE' && resteAPayer > 0 && activeFacture.statut === 'PAYEE') {
+            finalStatut = 'VALIDE';
+          }
+
+          if (newFacturesMap.has(activeFacture.numero)) {
             // It's a newly created facture in this batch, update its values directly
-            existingFacture.numero = invoiceNumero;
+            activeFacture.numero = invoiceNumero;
+            activeFacture.type = 'FACTURE';
+            if (dateEmission) activeFacture.dateEmission = dateEmission;
+            activeFacture.totalTTC = finalTotalTTC;
+            activeFacture.totalHT = finalTotalHT;
+            activeFacture.totalTVA = finalTotalTVA;
+            activeFacture.resteAPayer = resteAPayer;
+            activeFacture.statut = finalStatut;
           } else {
-            // STRICT UPDATE: ONLY update the numero field.
-            // The user specifically asked not to touch amounts, types, or lines.
+            const updateData: any = {
+              numero: invoiceNumero,
+              type: 'FACTURE',
+              totalTTC: finalTotalTTC,
+              totalHT: finalTotalHT,
+              totalTVA: finalTotalTVA,
+              resteAPayer,
+              statut: finalStatut,
+            };
+            if (dateEmission) {
+              updateData.dateEmission = dateEmission;
+            }
             facturesToUpdate.push({
-              id: existingFacture.id,
-              data: {
-                numero: invoiceNumero,
-              },
+              id: activeFacture.id,
+              data: updateData,
             });
           }
           results.success++;
@@ -3810,6 +3723,7 @@ export class ImportsService {
 
       const paymentsToCreate: any[] = [];
       const factureUpdates = new Map();
+        const facturesWithNewPayments = new Set<string>();
 
       for (let index = 0; index < data.length; index++) {
         const row = data[index];
@@ -3891,9 +3805,13 @@ export class ImportsService {
 
         const datePaiement =
           this.parseDate(row[mapping.datePaiement]) || new Date();
+
+
         const modeSource = row[mapping.modePaiement]
           ? String(row[mapping.modePaiement]).trim().toUpperCase()
           : 'ESPECES';
+        const dateEcheanceRaw = this.parseDate(row[mapping.dateEcheance]);
+        const dateEcheanceVal = dateEcheanceRaw || (modeSource.includes('CHEQUE') || modeSource.includes('LCN') ? datePaiement : null);
         const reference = row[mapping.reference]
           ? String(row[mapping.reference]).substring(0, 100)
           : null;
@@ -3904,6 +3822,7 @@ export class ImportsService {
         const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement']);
         const banque = banqueVal ? String(banqueVal).trim() : null;
 
+        facturesWithNewPayments.add(facture.id);
         paymentsToCreate.push({
           factureId: facture.id,
           montant,
@@ -3912,6 +3831,7 @@ export class ImportsService {
           reference,
           notes,
           banque,
+          dateEncaissement: dateEcheanceVal,
           statut: 'ENCAISSE',
         });
 
@@ -3933,6 +3853,15 @@ export class ImportsService {
       console.log(
         `[ImportLog] Phase 3: Bulk inserting ${paymentsToCreate.length} payments...`,
       );
+        if (facturesWithNewPayments.size > 0) {
+          console.log(`[ImportLog] Removing previous Acompte Import for ${facturesWithNewPayments.size} factures...`);
+          await this.prisma.paiement.deleteMany({
+            where: {
+              factureId: { in: Array.from(facturesWithNewPayments) },
+              notes: { startsWith: 'Acompte Import' }
+            }
+          });
+        }
       const t1 = Date.now();
       const BATCH_SIZE = 500;
 
@@ -4239,6 +4168,7 @@ export class ImportsService {
   }
 
   async clearData() {
+    this.invoiceNumbersForChunk = null;
     this.logToFile(
       'Starting database wipe (TRUNCATE CASCADE) for clean re-import...',
     );
@@ -4270,3 +4200,5 @@ export class ImportsService {
     }
   }
 }
+
+

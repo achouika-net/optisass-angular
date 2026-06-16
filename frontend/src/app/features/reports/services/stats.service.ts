@@ -59,6 +59,11 @@ export interface StatsSummary {
         produit: number;
     };
     productsStats?: { [key: string]: number };
+    devisStats?: {
+        count: number;
+        totalTTC: number;
+    };
+    totalRecettes?: number;
     clientStats?: {
         M: number;
         F: number;

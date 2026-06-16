@@ -119,6 +119,30 @@
                             {{ summary.incomingCard | number:'1.2-2' }} DH
                         </span>
                     </div>
+                    <div class="flex justify-between px-4" *ngIf="summary.incomingCheque > 0">
+                        <span>Chèque:</span>
+                        <span class="text-orange-600">
+                            {{ summary.incomingCheque | number:'1.2-2' }} DH
+                        </span>
+                    </div>
+                    <div class="flex justify-between px-4" *ngIf="summary.incomingLCN > 0">
+                        <span>Effet LCN:</span>
+                        <span class="text-indigo-600 font-medium">
+                            {{ summary.incomingLCN | number:'1.2-2' }} DH
+                        </span>
+                    </div>
+                    <div class="flex justify-between px-4" *ngIf="summary.incomingVirement > 0">
+                        <span>Virement:</span>
+                        <span class="text-teal-600">
+                            {{ summary.incomingVirement | number:'1.2-2' }} DH
+                        </span>
+                    </div>
+                    <div class="flex justify-between px-4" *ngIf="summary.incomingGesteCommercial > 0">
+                        <span>Geste Commercial:</span>
+                        <span class="text-gray-500">
+                            {{ summary.incomingGesteCommercial | number:'1.2-2' }} DH
+                        </span>
+                    </div>
                     <div class="flex justify-between px-4 pt-1 border-t border-gray-100 mt-1">
                         <span>En coffre (Cheques/LCN):</span>
                         <span class="text-orange-600">

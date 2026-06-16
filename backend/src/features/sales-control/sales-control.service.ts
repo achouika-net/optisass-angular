@@ -55,33 +55,19 @@ export class SalesControlService {
     const start = startDate ? new Date(startDate) : undefined;
     const end = endDate ? new Date(endDate) : undefined;
 
-    const results = await this.prisma.facture.findMany({
+    return this.prisma.facture.findMany({
       where: {
         centreId,
-        statut: { notIn: ['ARCHIVE', 'ANNULEE', 'VENTE_EN_INSTANCE'] },
-        paiements: { none: {} },
+        type: 'DEVIS',
+        statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
         ...(start || end ? { dateEmission: { gte: start, lte: end } } : {}),
       },
       include: {
         client: { select: { nom: true, prenom: true, raisonSociale: true } },
         fiche: true,
+        paiements: true,
       },
       orderBy: [{ fiche: { numero: 'desc' } }, { dateEmission: 'desc' }],
-    });
-
-    return results.filter((f) => {
-      const isBC =
-        f.type === 'BON_COMMANDE' ||
-        f.type === 'BON_COMM' ||
-        (f.numero || '').startsWith('BC');
-      if (isBC) return false;
-      const num = (f.numero || '').toUpperCase();
-      return (
-        f.type === 'DEVIS' ||
-        num.startsWith('BRO') ||
-        num.startsWith('DEV') ||
-        num.startsWith('DEVIS')
-      );
     });
   }
 
@@ -228,19 +214,7 @@ export class SalesControlService {
     const paymentDateFilter =
       start || end ? { date: { gte: start, lte: end } } : {};
 
-    // First, get the ficheIds of all real Factures in this period to avoid double counting BCs
-    const facturesWithFiche = await this.prisma.facture.findMany({
-      where: {
-        centreId,
-        type: 'FACTURE',
-        ficheId: { not: null },
-        ...dateFilter,
-      },
-      select: { ficheId: true },
-    });
-    const factureFicheIds = facturesWithFiche
-      .map((f) => f.ficheId)
-      .filter((id): id is string => !!id);
+    
 
     const [
       factureAgg,
@@ -272,7 +246,6 @@ export class SalesControlService {
           centreId,
           type: { in: ['BON_COMMANDE', 'BON_COMM'] },
           statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
-          ficheId: { notIn: factureFicheIds },
           OR: [
             { notes: { not: { contains: 'Remplacée par' } } },
             { notes: null },
@@ -295,10 +268,8 @@ export class SalesControlService {
       this.prisma.facture.count({
         where: {
           centreId,
-          statut: { notIn: ['ARCHIVE', 'ANNULEE', 'VENTE_EN_INSTANCE'] },
-          paiements: { none: {} },
-          type: { notIn: ['BON_COMMANDE', 'BON_COMM', 'FACTURE', 'AVOIR'] },
-          numero: { not: { startsWith: 'BC' } },
+          type: 'DEVIS',
+          statut: { notIn: ['ARCHIVE', 'ANNULEE'] },
           ...dateFilter,
         },
       }),
@@ -338,7 +309,6 @@ export class SalesControlService {
               // BCs inclus dans le CA (non dédupliqués, même logique que bcAgg)
               {
                 type: { in: ['BON_COMMANDE', 'BON_COMM'] },
-                ficheId: { notIn: factureFicheIds },
                 OR: [
                   { notes: { not: { contains: 'Remplacée par' } } },
                   { notes: null },
@@ -360,7 +330,7 @@ export class SalesControlService {
     const totalFacturesReste = factureAgg._sum.resteAPayer || 0;
     const totalBMReste = bcAgg._sum.resteAPayer || 0;
     const totalAvoirsReste = avoirAgg._sum.resteAPayer || 0;
-    const totalReste = totalFacturesReste + totalBMReste - totalAvoirsReste;
+    
 
     // Harmonize payment modes for clean display
     const mergedPayments = new Map<string, number>();
@@ -391,6 +361,7 @@ export class SalesControlService {
     );
 
     const totalEncaissePeriod = payments.reduce((sum, p) => sum + p.total, 0);
+    const totalReste = Math.max(0, totalAmount - totalEncaissePeriod);
 
     const stats = [
       {

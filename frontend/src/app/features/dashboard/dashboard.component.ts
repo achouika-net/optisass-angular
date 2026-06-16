@@ -50,6 +50,10 @@ export class MainDashboardComponent implements OnInit, AfterViewInit, OnDestroy 
 
     loading = false;
     summary: StatsSummary | null = null;
+
+    get totalDevisCount(): number { return this.summary?.devisStats?.count || 0; }
+    get totalDevisTTC(): number { return this.summary?.devisStats?.totalTTC || 0; }
+    get totalRecettes(): number { return this.summary?.totalRecettes || 0; }
     revenueData: any[] = [];
     topClients: any[] = [];
 

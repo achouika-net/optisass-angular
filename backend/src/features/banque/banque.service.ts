@@ -344,7 +344,7 @@ export class BanqueService {
           where: {
             OR: [
               { statut: { in: ['REMIS_EN_BANQUE', 'EN_ATTENTE'] } },
-              { statut: 'ENCAISSE', mode: { in: ['CARTE', 'CARTE_BANCAIRE', 'CB', 'TPE'] }, transactionBancaireId: null }
+              { statut: 'ENCAISSE', mode: { in: ['CARTE', 'CARTE BANCAIRE', 'CARTE_BANCAIRE', 'CB', 'TPE'] }, transactionBancaireId: null }
             ]
           }
         });

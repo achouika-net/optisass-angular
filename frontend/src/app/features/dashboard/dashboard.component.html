@@ -94,8 +94,27 @@
                 <mat-icon>payments</mat-icon>
             </div>
             <div class="kpi-content">
-                <span class="label">Chiffre d'Affaires</span>
+                <span class="label">Chiffre d'Affaires HT (Fact + BC)</span>
                 <h2 class="value">{{ (summary?.totalRevenue || 0) | number:'1.2-2' }} DH</h2>
+                <div class="kpi-sub-info" *ngIf="summary?.totalRecettes">
+                    <span class="sub-badge encaisse">
+                        <mat-icon style="font-size:12px;height:12px;width:12px">account_balance</mat-icon>
+                        Encaissé: {{ (summary?.totalRecettes || 0) | number:'1.0-0' }} DH
+                    </span>
+                </div>
+            </div>
+        </mat-card>
+
+        <mat-card class="kpi-card glass warning" *ngIf="totalDevisCount > 0">
+            <div class="kpi-icon">
+                <mat-icon>pending_actions</mat-icon>
+            </div>
+            <div class="kpi-content">
+                <span class="label">Devis en Cours</span>
+                <h2 class="value">{{ totalDevisTTC | number:'1.0-0' }} DH</h2>
+                <div class="kpi-sub-info">
+                    <span class="sub-badge devis">{{ totalDevisCount }} dossier(s) non validé(s)</span>
+                </div>
             </div>
         </mat-card>
 

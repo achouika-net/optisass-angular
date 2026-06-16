@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef } from '@angular/core';
+﻿import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -137,6 +137,7 @@ export class DataImportComponent implements OnInit {
             { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier (Livre, Commande...)' },
             { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateEmission', label: 'Date Facture' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
             { value: 'montantTotal', label: 'Montant Total (TTC)' },
             { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
@@ -224,6 +225,7 @@ export class DataImportComponent implements OnInit {
             { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier' },
             { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateEmission', label: 'Date Facture' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
             { value: 'montantTotal', label: 'Montant Total (TTC)' },
             { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
@@ -246,6 +248,7 @@ export class DataImportComponent implements OnInit {
             // Infos Fiche
             { value: 'statut', label: 'Statut Dossier' },
             { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateEmission', label: 'Date Facture' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
             { value: 'valide', label: 'Validé (Oui/Non)' },
             { value: 'facture', label: 'Facturé (Oui/Non)' },
@@ -343,6 +346,7 @@ export class DataImportComponent implements OnInit {
 
             // Infos Communes
             { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateEmission', label: 'Date Facture' },
             { value: 'valide', label: 'Validé (Oui/Non)' },
             { value: 'facture', label: 'Facturé (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier' },
@@ -427,6 +431,7 @@ export class DataImportComponent implements OnInit {
             { value: 'fiche', label: 'N° Fiche / Dossier (Compteur)' },
             { value: 'numeroFacture', label: 'N° Facture' },
             { value: 'datePaiement', label: 'Date Paiement' },
+            { value: 'dateEcheance', label: 'Date Chèque / Échéance' },
             { value: 'montant', label: 'Montant Payé' },
             { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Carte/Virement)' },
             { value: 'reference', label: 'Référence' },
@@ -642,8 +647,8 @@ export class DataImportComponent implements OnInit {
             fiche_id: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'id fiche', 'fiche id', 'no fiche', 'n fiche', 'n° fiche'],
             fiche_type: ['type fiche', 'type dossier', 'categorie fiche', 'fiche type'],
             numero: ['numero', 'num', 'n°', 'no', 'numero fiche', 'num fiche', 'n° fiche', 'dossier', 'id fiche', 'numero facture', 'invoice number'],
-            valide: ['valide', 'valid', 'validated', 'confirme', 'oui non', 'checkbox', 'coche'],
-            facture: ['facture', 'facturation', 'facturee', 'invoiced', 'invoice', 'facture oui non', 'n° fiche', 'num fiche'],
+            valide: ['valide', 'valid', 'validated', 'confirme', 'checkbox', 'coche'],
+            facture: ['facture', 'facturation', 'facturee', 'invoiced', 'invoice', 'facture oui non'],
             statut: ['statut', 'status', 'etat', 'state', 'situation'],
             dateLivraisonEstimee: ['livraison', 'date livraison', 'delivery date', 'date remise', 'remise', 'date retrait'],
             montantTotal: ['montant total', 'total', 'prix total', 'total ttc', 'montant ttc', 'price', 'prix', 'amount'],
@@ -1001,3 +1006,4 @@ export class DataImportComponent implements OnInit {
         }
     }
 }
+

@@ -37,7 +37,7 @@ export class PaiementsService {
     // Query overdue checks: checks with dateVersement < now and statut != ENCAISSE
     const overdue = await this.prisma.paiement.findMany({
       where: {
-        mode: { in: ['CHEQUE', 'CHÈQUE'] },
+        mode: { in: ['CHEQUE', 'CHÈQUE', 'LCN'] },
         statut: { not: 'ENCAISSE' }, // Not yet cashed
         dateVersement: { lt: new Date() }, // Past due date
       },
