@@ -76,7 +76,7 @@ export class TreasuryController {
       startDate,
       endDate,
       centreId,
-      type: mode,
+      mode,
       statut,
       page,
       limit,
@@ -144,3 +144,4 @@ export class TreasuryController {
     return this.treasuryService.getPendingAlerts(centreId);
   }
 }
+
