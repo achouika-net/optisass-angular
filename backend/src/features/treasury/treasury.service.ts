@@ -241,7 +241,7 @@ export class TreasuryService {
 
     const query = `
       SELECT 
-        p.id, p.date, p.montant, p.statut, p.mode, f."dateEmission" as "factureDate",
+        p.id, p.date, p.montant, p.statut, p.mode, f."dateEmission" as "factureDate", p."dateEncaissement",
         COALESCE(f.numero, 'N/A') as libelle,
         COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, '') as client,
         p.reference as "numeroPiece", p.banque
@@ -259,21 +259,20 @@ export class TreasuryService {
     const allModes: string[] = [];
     for (const m of modes) {
       if (m === 'CHEQUE')
-        allModes.push('CHEQUE', 'Ch�que', 'CH�QUE', 'CH�QUE', 'CHaque', 'CHa^QUE', 'CHa%QUE');
+        allModes.push('CHEQUE', 'Chèque', 'CHÈQUE', 'CHÉQUE');
       else if (m === 'LCN') allModes.push('LCN', 'EFFET', 'Effet', 'Traite');
       else if (m === 'ESPECES' || m === 'LIQUIDE')
         allModes.push(
           'ESPECES',
-          'EspÃ¨ces',
+          'Espèces',
           'Liquide',
           'CASH',
           'LIQUIDE',
-          'ESPÃCES',
-          'ESPÃCE',
-          'ESPECE',
+          'ESPÈCES',
+          'ESPÈCE',
+          'ESPECE'
         );
       else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
-      else if (m === 'CARTE') allModes.push('CARTE', 'CARTE BANCAIRE', 'CB', 'TPE');
       else if (m === 'CARTE') allModes.push('CARTE', 'CARTE BANCAIRE', 'CB', 'TPE');
       else if (['PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC'].includes(m))
         allModes.push('PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC');
@@ -626,7 +625,8 @@ export class TreasuryService {
         methodePaiement: r.mode,
         modePaiement: r.mode,
         reference: r.numeroPiece || r.reference || null,
-      })),
+          datePiece: r.dateEncaissement || r.factureDate || r.date,
+        })),
       total: s.total,
       subtotals: {
         totalTTC: Number(s.totalTTC || 0),
