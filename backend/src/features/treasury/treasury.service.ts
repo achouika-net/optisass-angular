@@ -218,8 +218,16 @@ export class TreasuryService {
     }
 
     if (filters.statut && filters.statut !== 'ALL') {
-      sqlParams.push(filters.statut);
-      whereClause += `AND p.statut = $${sqlParams.length} `;
+      if (filters.statut === 'PAYE') {
+        whereClause += `AND p.statut IN (${this.getPaidStatusesSQL()}) `;
+      } else if (filters.statut === 'EN_ATTENTE') {
+        whereClause += "AND p.statut IN ('EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON') ";
+      } else if (filters.statut === 'ANNULE') {
+        whereClause += "AND p.statut IN ('ANNULE', 'REJETE', 'IMPAYE') ";
+      } else {
+        sqlParams.push(filters.statut);
+        whereClause += `AND p.statut = ${sqlParams.length} `;
+      }
     }
 
     const modeVal = filters.mode || filters.modePaiement;
