@@ -60,6 +60,11 @@ export class LoyaltyController {
   }
 
   // NEW: Get redemption history
+  @Post('recalculate')
+  recalculatePoints() {
+    return this.loyaltyService.recalculateAllClientsPoints();
+  }
+
   @Get('redemptions/:clientId')
   getRedemptions(@Param('clientId') clientId: string) {
     return this.loyaltyService.getRedemptionHistory(clientId);

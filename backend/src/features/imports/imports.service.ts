@@ -1,4 +1,4 @@
-﻿import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 const XLSX = require('xlsx');
@@ -26,13 +26,13 @@ export class ImportsService {
     if (!type) return 'ESPECES';
     const s = String(type).trim().toUpperCase();
     if (s.includes('ESPECE') || s.includes('LIQUIDE') || s.includes('CASH') || s === 'LQR') return 'ESPECES';
-    if (s.includes('CHEQUE') || s.includes('CH�QUE') || s.includes('CHÈQUE') || s.includes('CHÉQUE') || s.includes('CHQUE')) return 'CHEQUE';
+    if (s.includes('CHEQUE') || s.includes('CH?QUE') || s.includes('CHQUE') || s.includes('CHQUE') || s.includes('CHQUE')) return 'CHEQUE';
     if (s.includes('EFFET') || s === 'LCN') return 'LCN';
-    if (s.includes('VIREMENT') || s.includes('PRELEVEMENT') || s.includes('PR��VEMENT') || s.includes('PR�L�VEMENT') || s.includes('PRÉLÈVEMENT') || s.includes('PRÉLEVEMENT') || s.includes('PRELÈVEMENT') || s.includes('PRLVEMENT')) return 'VIREMENT';
+    if (s.includes('VIREMENT') || s.includes('PRELEVEMENT') || s.includes('PR??VEMENT') || s.includes('PR?L?VEMENT') || s.includes('PRLVEMENT') || s.includes('PRLEVEMENT') || s.includes('PRELVEMENT') || s.includes('PRLVEMENT')) return 'VIREMENT';
     if (s.includes('CARTE')) return 'CARTE';
     if (s.includes('AVOIR')) return 'AVOIR';
     if (s.includes('GESTE')) return 'PRISE_EN_CHARGE';
-    if (s.includes('NON REGL') || s.includes('NON REGL�') || s.includes('NON REGLE') || s.includes('NON_REGLE') || s.includes('NON REGLÉ') || s.includes('NON REGLÈ')) return 'NON_REGLE';
+    if (s.includes('NON REGL') || s.includes('NON REGL?') || s.includes('NON REGLE') || s.includes('NON_REGLE') || s.includes('NON REGL') || s.includes('NON REGL')) return 'NON_REGLE';
     return s;
   }
 
@@ -206,7 +206,7 @@ export class ImportsService {
           group = await this.prisma.groupe.create({
             data: {
               nom: `Famille ${familyName}`,
-              description: `Groupe créé automatiquement par import (Tél: ${tel})`,
+              description: `Groupe cr automatiquement par import (Tl: ${tel})`,
               type: 'FAMILY',
             },
           });
@@ -419,6 +419,12 @@ export class ImportsService {
       }
     }
 
+    try {
+      await this.loyaltyService.recalculateAllClientsPoints();
+    } catch (loyErr) {
+      console.error('❌ Error recalculating loyalty points in post-import hook:', loyErr);
+    }
+
     return results;
   }
 
@@ -606,7 +612,7 @@ export class ImportsService {
     const log = (msg: string) => {
       const now = new Date();
       console.log(
-        `[${now.toISOString().split('T')[1].split('.')[0]}] 📄 ${msg}`,
+        `[${now.toISOString().split('T')[1].split('.')[0]}] ?? ${msg}`,
       );
     };
 
@@ -820,7 +826,7 @@ export class ImportsService {
 
       if (missingClients.length > 0) {
         log(
-          `⚡ Aggressive Auto - creating ${missingClients.length} missing clients...`,
+          `? Aggressive Auto - creating ${missingClients.length} missing clients...`,
         );
         await this.prisma.client.createMany({
           data: missingClients,
@@ -1478,7 +1484,7 @@ export class ImportsService {
             const rawValide = String(pm.valide ?? '')
               .toLowerCase()
               .trim();
-            isValide = ['vrai', 'true', 'oui', 'yes', '1', 'valide', 'validé', 'valider'].includes(rawValide) || pm.valide === true;
+            isValide = ['vrai', 'true', 'oui', 'yes', '1', 'valide', 'valid', 'valider'].includes(rawValide) || pm.valide === true;
           }
 
           let isFacture = false;
@@ -1486,7 +1492,7 @@ export class ImportsService {
             const rawFacture = String(pm.facture ?? '')
               .toLowerCase()
               .trim();
-            isFacture = ['vrai', 'true', 'oui', 'yes', '1', 'facture', 'facturée', 'facturee'].includes(rawFacture) || pm.facture === true;
+            isFacture = ['vrai', 'true', 'oui', 'yes', '1', 'facture', 'facture', 'facturee'].includes(rawFacture) || pm.facture === true;
           }
 
           const hasInvoiceNum = !!(pm.numero || pm.fiche_id || pm.numero_fiche);
@@ -1549,7 +1555,7 @@ export class ImportsService {
             ficheObject.numero = ficheNumero;
           }
 
-          // ─── UPSERT: Check if this Fiche already exists ───────────────
+          // --- UPSERT: Check if this Fiche already exists ---------------
           // Match by: clientId + numero (if provided), else clientId + dateCreation date
           let existingFiche: any = null;
           if (ficheNumero && clientId) {
@@ -1572,7 +1578,7 @@ export class ImportsService {
               );
             }
           }
-          // ─────────────────────────────────────────────────────────────
+          // -------------------------------------------------------------
 
           // Conditional linked Facture creation
           if (shouldCreateInvoice) {
@@ -1647,7 +1653,7 @@ export class ImportsService {
 
                   // DEBUG LOGGING (Temporary)
                   // if (f.numero.endsWith('50') || f.numero === 'FAC-81/2024') {
-                  //     console.log(`🔍 GENERATING LINES FOR ${f.numero}`);
+                  //     console.log(`?? GENERATING LINES FOR ${f.numero}`);
                   //     console.log('   Content Monture:', JSON.stringify(content.monture));
                   //     console.log('   Content Verres:', JSON.stringify(content.verres));
                   // }
@@ -1730,7 +1736,7 @@ export class ImportsService {
                     0,
                   );
                   if (lines.length === 0 && totalAmount > 0) {
-                    addLine('Import Global - Détail manquant', 1, totalAmount);
+                    addLine('Import Global - Dtail manquant', 1, totalAmount);
                   }
 
                   return lines;
@@ -1752,7 +1758,7 @@ export class ImportsService {
       results.errors.push(`Erreur Critique: ${globalError.message} `);
     }
     console.log(
-      `🚀 Sequential bulk inserting ${fichesToCreate.length} fiches then ${facturesToCreate.length} factures...`,
+      `?? Sequential bulk inserting ${fichesToCreate.length} fiches then ${facturesToCreate.length} factures...`,
     );
 
     // 1. Insert Fiches FIRST and WAIT for completion
@@ -1768,13 +1774,13 @@ export class ImportsService {
           `   [Fiches] Chunk ${i / CHUNK_SIZE + 1}: Requested ${ficheChunk.length}, Persisted ${result.count}`,
         );
       } catch (ficheErr: any) {
-        console.error('❌ Fiche chunk insert error:', ficheErr.message);
+        console.error('? Fiche chunk insert error:', ficheErr.message);
       }
     }
 
     // 2. Insert Factures ONLY after all Fiches are done
     if (facturesToCreate.length > 0) {
-      console.log(`🚀 Inserting ${facturesToCreate.length} factures...`);
+      console.log(`?? Inserting ${facturesToCreate.length} factures...`);
       for (let i = 0; i < facturesToCreate.length; i += CHUNK_SIZE) {
         const factureChunk = facturesToCreate.slice(i, i + CHUNK_SIZE);
         try {
@@ -1786,7 +1792,7 @@ export class ImportsService {
             `   [Factures] Chunk ${i / CHUNK_SIZE + 1}: Requested ${factureChunk.length}, Persisted ${result.count}`,
           );
         } catch (factureErr: any) {
-          console.error('❌ Facture chunk insert error:', factureErr.message);
+          console.error('? Facture chunk insert error:', factureErr.message);
           // Log specific error for debugging
           try {
             const fs = require('fs');
@@ -1812,7 +1818,7 @@ export class ImportsService {
       // of transactions, overwhelming the connection pool.
       // Loyalty points should be awarded individually when invoices are created one-by-one in normal use.
       console.log(
-        `✅ Skipping loyalty points for bulk import (${facturesToCreate.length} factures).`,
+        `? Skipping loyalty points for bulk import (${facturesToCreate.length} factures).`,
       );
     }
 
@@ -1830,7 +1836,7 @@ export class ImportsService {
           date: f.dateEmission || new Date(),
           mode: 'ESPECES', // Assuming cash for acompte import
             statut: 'ENCAISSE',
-            notes: 'Acompte Import (D�livrance)',
+            notes: 'Acompte Import (D?livrance)',
         });
       }
     }
@@ -1841,13 +1847,19 @@ export class ImportsService {
           data: paymentsToCreate,
           skipDuplicates: true,
         });
-        console.log(`✅ Bulk created ${paymentsToCreate.length} acomptes.`);
+        console.log(`? Bulk created ${paymentsToCreate.length} acomptes.`);
       } catch (err) {
         console.error(
-          '❌ Error creating acompte payments in bulk:',
+          '? Error creating acompte payments in bulk:',
           (err as Error).message,
         );
       }
+    }
+
+    try {
+      await this.loyaltyService.recalculateAllClientsPoints();
+    } catch (loyErr) {
+      console.error('? Error recalculating loyalty points in post-import hook:', loyErr);
     }
 
     return results;
@@ -1949,8 +1961,8 @@ export class ImportsService {
             JSON.stringify(debugInfo, null, 2),
           );
 
-          console.error('❌ Designation Validation Fail:', debugInfo);
-          throw new Error('Designation is required (Marque/Modèle missing?)');
+          console.error('? Designation Validation Fail:', debugInfo);
+          throw new Error('Designation is required (Marque/Modle missing?)');
         }
         if (!productData.codeInterne) {
           // Generate generic code if missing
@@ -2026,7 +2038,7 @@ export class ImportsService {
         results.failed++;
 
         // Debug log for Prisma errors
-        console.error('❌ Prisma Import Error:', {
+        console.error('? Prisma Import Error:', {
           row: index + 1,
           error: error.message,
           code: error.code,
@@ -2124,8 +2136,8 @@ export class ImportsService {
             : null,
           cnss: row[mapping.cnss] ? String(row[mapping.cnss]).trim() : null,
           rib: row[mapping.rib] ? String(row[mapping.rib]).trim() : null,
-          banque: this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement'])
-            ? String(this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement'])).trim()
+          banque: this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'tablissement', 'banque paiement'])
+            ? String(this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'tablissement', 'banque paiement'])).trim()
             : null,
           conditionsPaiement: row[mapping.conditionsPaiement]
             ? String(row[mapping.conditionsPaiement]).trim()
@@ -2836,7 +2848,7 @@ export class ImportsService {
         const montant = Math.abs(this.parseAmount(
           row[mapping.montant] || row[mapping.montantTTC],
         ));
-        const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement']);
+        const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'tablissement', 'banque paiement']);
         const banque = banqueVal ? String(banqueVal).trim() : null;
 
         if (montant === 0) continue;
@@ -2979,7 +2991,7 @@ export class ImportsService {
         }
         */
 
-        // Fallback: match by exact amount among unpaid expenses (Dépenses) - DISABLED TO PREVENT INCORRECT LINKING
+        // Fallback: match by exact amount among unpaid expenses (Dpenses) - DISABLED TO PREVENT INCORRECT LINKING
         /*
         if (!facture && montant > 0) {
           depense = await this.prisma.depense.findFirst({
@@ -3667,11 +3679,17 @@ export class ImportsService {
       }
     }
 
+    try {
+      await this.loyaltyService.recalculateAllClientsPoints();
+    } catch (loyErr) {
+      console.error('? Error recalculating loyalty points in post-import hook:', loyErr);
+    }
+
     return results;
   }
 
   async importPaiementsClients(data: any[], mapping: any) {
-    console.log('[ImportLog] PaiementsClients — OPTIMIZED BULK MODE');
+    console.log('[ImportLog] PaiementsClients  OPTIMIZED BULK MODE');
     const results = {
       success: 0,
       updated: 0,
@@ -3784,7 +3802,7 @@ export class ImportsService {
         if (!client) {
           results.skipped++;
           results.errors.push(
-            `Row ${index + 1}: Client non trouvé (code: ${codeClient}, nom: ${nomClientRaw})`,
+            `Row ${index + 1}: Client non trouv (code: ${codeClient}, nom: ${nomClientRaw})`,
           );
           continue;
         }
@@ -3792,7 +3810,7 @@ export class ImportsService {
         if (!facture) {
           results.skipped++;
           results.errors.push(
-            `Row ${index + 1}: Facture non trouvée pour client ${client.nom} (Fiche: ${ficheNumeroRaw}, Num: ${numeroFactureRaw})`,
+            `Row ${index + 1}: Facture non trouve pour client ${client.nom} (Fiche: ${ficheNumeroRaw}, Num: ${numeroFactureRaw})`,
           );
           continue;
         }
@@ -3819,7 +3837,7 @@ export class ImportsService {
           ? String(row[mapping.notes]).substring(0, 500)
           : null;
 
-        const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'établissement', 'banque paiement']);
+        const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'tablissement', 'banque paiement']);
         const banque = banqueVal ? String(banqueVal).trim() : null;
 
         facturesWithNewPayments.add(facture.id);
@@ -3847,9 +3865,9 @@ export class ImportsService {
         results.success++;
       }
 
-      // ════════════════════════════════════════════════
+      // ------------------------------------------------
       // PHASE 3: BULK INSERT payments (batches of 500)
-      // ════════════════════════════════════════════════
+      // ------------------------------------------------
       console.log(
         `[ImportLog] Phase 3: Bulk inserting ${paymentsToCreate.length} payments...`,
       );
@@ -3878,9 +3896,9 @@ export class ImportsService {
 
       console.log(`[ImportLog] Bulk insert done in ${Date.now() - t1}ms`);
 
-      // ════════════════════════════════════════════════
+      // ------------------------------------------------
       // PHASE 4: BULK UPDATE invoice balances (batches)
-      // ════════════════════════════════════════════════
+      // ------------------------------------------------
       console.log(
         `[ImportLog] Phase 4: Updating ${factureUpdates.size} invoice balances...`,
       );
@@ -3914,6 +3932,12 @@ export class ImportsService {
       console.error('CRITICAL IMPORT ERROR (PaiementsClients):', globalError);
       results.failed = data.length;
       results.errors.push(`Erreur Critique: ${globalError.message}`);
+    }
+
+    try {
+      await this.loyaltyService.recalculateAllClientsPoints();
+    } catch (loyErr) {
+      console.error('? Error recalculating loyalty points in post-import hook:', loyErr);
     }
 
     return results;

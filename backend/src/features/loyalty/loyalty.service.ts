@@ -526,4 +526,139 @@ export class LoyaltyService {
       `[LOYALTY-CACHE] All loyalty caches invalidated for ${clientId}`,
     );
   }
+
+  /**
+   * Recalculates loyalty points and rebuilds points history for all clients.
+   * Useful after data resets or bulk imports.
+   */
+  async recalculateAllClientsPoints() {
+    console.log('💎 [LOYALTY] Starting global recalculation of loyalty points...');
+    const config = await this.getConfig();
+    const folderCreationBonus = config.folderCreationBonus || 0;
+    const pointsPerDH = config.pointsPerDH || 0;
+
+    const clients = await this.prisma.client.findMany({
+      include: {
+        fiches: {
+          select: { id: true },
+        },
+        factures: {
+          select: {
+            id: true,
+            numero: true,
+            totalTTC: true,
+            type: true,
+            proprietes: true,
+          },
+        },
+      },
+    });
+
+    console.log(`💎 [LOYALTY] Recalculating points for ${clients.length} clients...\n`);
+
+    await this.prisma.$transaction(async (tx) => {
+      // Delete existing points history of types FOLDER_CREATION, EARN, and SPEND with factureId
+      await tx.pointsHistory.deleteMany({
+        where: {
+          OR: [
+            { type: 'FOLDER_CREATION' },
+            { type: 'EARN' },
+            { type: 'SPEND', factureId: { not: null } },
+          ],
+        },
+      });
+
+      for (const client of clients) {
+        // Convention clients get 0 points by rule
+        if (client.conventionId) {
+          if (client.pointsFidelite !== 0) {
+            await tx.client.update({
+              where: { id: client.id },
+              data: { pointsFidelite: 0 },
+            });
+          }
+          continue;
+        }
+
+        // Sum remaining points (like referrals or manual adjustments)
+        const remainingHistory = await tx.pointsHistory.findMany({
+          where: {
+            clientId: client.id,
+            NOT: {
+              OR: [
+                { type: 'FOLDER_CREATION' },
+                { type: 'EARN' },
+                { type: 'SPEND', factureId: { not: null } },
+              ],
+            },
+          },
+          select: { points: true },
+        });
+        let totalPoints = remainingHistory.reduce((sum, h) => sum + h.points, 0);
+        const historyData: any[] = [];
+
+        // Points for folders (fiches)
+        if (folderCreationBonus > 0) {
+          for (const fiche of client.fiches) {
+            totalPoints += folderCreationBonus;
+            historyData.push({
+              clientId: client.id,
+              points: folderCreationBonus,
+              type: 'FOLDER_CREATION',
+              description: `Création dossier médical fiche ${fiche.id}`,
+            });
+          }
+        }
+
+        // Points for purchases (factures)
+        for (const facture of client.factures) {
+          // Earn points
+          const purchasePoints = Math.floor(facture.totalTTC * pointsPerDH);
+          if (purchasePoints > 0) {
+            totalPoints += purchasePoints;
+            const typeLabel = facture.type === 'FACTURE' ? 'facture' : 'bon de commande';
+            historyData.push({
+              clientId: client.id,
+              factureId: facture.id,
+              points: purchasePoints,
+              type: 'EARN',
+              description: `Achat ${typeLabel} ${facture.numero}`,
+            });
+          }
+
+          // Spent points
+          const props = (facture.proprietes as any) || {};
+          const pointsSpent = Number(props.pointsUtilises || 0);
+          if (pointsSpent > 0) {
+            totalPoints -= pointsSpent;
+            historyData.push({
+              clientId: client.id,
+              factureId: facture.id,
+              points: -pointsSpent,
+              type: 'SPEND',
+              description: `Déduction points pour document ${facture.numero}`,
+            });
+          }
+        }
+
+        const finalPoints = Math.max(0, totalPoints);
+
+        // Update client points
+        await tx.client.update({
+          where: { id: client.id },
+          data: { pointsFidelite: finalPoints },
+        });
+
+        // Insert history records
+        if (historyData.length > 0) {
+          await tx.pointsHistory.createMany({
+            data: historyData,
+          });
+        }
+      }
+    });
+
+    console.log('💎 [LOYALTY] Recalculation complete!');
+  }
+
 }
