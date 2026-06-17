@@ -169,7 +169,7 @@ export class TreasuryService {
           COALESCE(f.nom, ff_d.nom, 'N/A') as fournisseur, d.montant, COALESCE(ep_d.statut, 'ENCAISSE') as statut, 'DEPENSE' as source, 
           d."modePaiement" as "methodePaiement", d.reference as "numeroPiece", 
           COALESCE(ep_d.banque, 'CAISSE') as banque, COALESCE(d."dateEcheance", d.date) as "dateEcheance", 
-          d.date as "dateEncaissement", d.montant as "montantHT", ep_d.id as "echeanceId"
+          d.date as "dateEncaissement", d.montant as "montantHT", ep_d.id as "echeanceId", inv_d.id as "factureId"
         FROM "Depense" d
         LEFT JOIN "Fournisseur" f ON d."fournisseurId" = f.id
         LEFT JOIN "FactureFournisseur" inv_d ON d."factureFournisseurId" = inv_d.id
