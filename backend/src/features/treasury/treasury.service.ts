@@ -195,7 +195,7 @@ export class TreasuryService {
           ELSE 
             (CASE WHEN ep.type = 'AVOIR' AND (ff.type = 'AVOIR' OR ff."numeroFacture" ILIKE 'AV%' OR ff."numeroFacture" ILIKE 'CN%') THEN -ep.montant ELSE ep.montant END) 
           END as "montantHT", 
-          ep.id as "echeanceId"
+          ep.id as "echeanceId", ff.id as "factureId"
         FROM "EcheancePaiement" ep
         LEFT JOIN "FactureFournisseur" ff ON ep."factureFournisseurId" = ff.id
         LEFT JOIN "Fournisseur" f_ff ON COALESCE(ff."fournisseurId", (SELECT "fournisseurId" FROM "BonLivraison" WHERE id = ep."bonLivraisonId" LIMIT 1)) = f_ff.id

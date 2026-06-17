@@ -609,7 +609,7 @@ export class OutgoingPaymentListComponent implements OnInit {
         }
 
         if (payment.source === 'FACTURE') {
-            this.financeService.getInvoice(payment.id).subscribe(invoice => {
+            this.financeService.getInvoice(payment.factureId || payment.id).subscribe(invoice => {
                 const dialogRef = this.dialog.open(InvoiceFormDialogComponent, {
                     width: '1100px',
                     maxWidth: '95vw',
@@ -685,7 +685,7 @@ export class OutgoingPaymentListComponent implements OnInit {
         if (confirm(`Êtes-vous sûr de vouloir supprimer ce paiement (${payment.source === 'FACTURE' ? 'Facture' : 'Dépense'}) ?`)) {
             this.loading = true;
             if (payment.source === 'FACTURE') {
-                this.financeService.deleteInvoice(payment.id).subscribe({
+                this.financeService.deleteInvoice(payment.factureId || payment.id).subscribe({
                     next: () => {
                         this.snackBar.open('Facture supprimée avec succès', 'Fermer', { duration: 3000 });
                         this.loadPayments();
