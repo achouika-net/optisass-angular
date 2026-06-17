@@ -47,7 +47,7 @@
     "minio": "^8.0.7",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.12",
-    "pdf-parse": "1.1.1",
+    "pdf-parse": "^1.1.1",
     "pdfkit": "^0.17.2",
     "pg": "^8.19.0",
     "prisma": "^6.19.0",

@@ -69,6 +69,41 @@ export class AuthService {
     return this.mapToCurrentUser(user);
   }
 
+  // Maps a stored center role (string or numeric) to the numeric role id the
+  // frontend auth system expects: 1=employee, 2=manager, 3=admin, 4=superadmin.
+  private static readonly ROLE_NAME_TO_ID: Record<string, number> = {
+    superadmin: 4,
+    super_admin: 4,
+    admin: 3,
+    administrateur: 3,
+    administrator: 3,
+    manager: 2,
+    gerant: 2,
+    responsable: 2,
+    direction: 2,
+    employee: 1,
+    employe: 1,
+    vendeur: 1,
+    opticien: 1,
+    assistant: 1,
+    centre: 1,
+    comptable: 1,
+  };
+
+  private mapRoleToRoleId(role: unknown): number {
+    if (role === null || role === undefined) return 1;
+    if (typeof role === 'number') {
+      return role >= 1 && role <= 4 ? role : 1;
+    }
+    const raw = String(role).trim();
+    if (/^[1-4]$/.test(raw)) return Number(raw);
+    const normalized = raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    return AuthService.ROLE_NAME_TO_ID[normalized] ?? 1;
+  }
+
   private mapToCurrentUser(user: any) {
     // Map backend User and UserCentreRole to frontend ICurrentUser
     return {
@@ -85,6 +120,7 @@ export class AuthService {
         id: cr.centreId,
         name: cr.centreName,
         role: cr.role,
+        role_id: this.mapRoleToRoleId(cr.role),
         active: true,
         migrated: false,
         entrepotIds: cr.entrepotIds,
