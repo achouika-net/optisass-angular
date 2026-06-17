@@ -340,7 +340,7 @@ export class InvoiceFormDialogComponent implements OnInit {
             }
         });
 
-        const id = this.route.snapshot.paramMap.get('id');
+        const id = !this.dialogRef ? this.route.snapshot.paramMap.get('id') : null;
         if (id) {
             this.isEditMode = true;
             this.financeService.getInvoice(id).subscribe(invoice => {

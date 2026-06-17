@@ -136,7 +136,7 @@ export class ExpenseFormDialogComponent implements OnInit {
             }
         });
 
-        const id = this.route.snapshot.paramMap.get('id');
+        const id = !this.dialogRef ? this.route.snapshot.paramMap.get('id') : null;
         if (id) {
             this.isEditMode = true;
             this.financeService.getExpense(id).subscribe({
@@ -288,7 +288,7 @@ export class ExpenseFormDialogComponent implements OnInit {
         };
 
         if (this.isEditMode) {
-            const id = this.route.snapshot.paramMap.get('id') || this.data?.expense?.id;
+            const id = this.data?.expense?.id || (!this.dialogRef ? this.route.snapshot.paramMap.get('id') : null);
             if (id) {
                 this.financeService.updateExpense(id, expenseData).subscribe({
                     next: () => this.finalize(expenseData),

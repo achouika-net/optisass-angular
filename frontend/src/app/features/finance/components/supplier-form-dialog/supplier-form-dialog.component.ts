@@ -121,7 +121,7 @@ export class SupplierFormDialogComponent implements OnInit {
             }
         });
 
-        const id = this.route.snapshot.paramMap.get('id');
+        const id = !this.dialogRef ? this.route.snapshot.paramMap.get('id') : null;
         if (id) {
             this.isEditMode = true;
             this.financeService.getSupplier(id).subscribe(supplier => {
@@ -167,7 +167,7 @@ export class SupplierFormDialogComponent implements OnInit {
             this.submitting = true;
             const supplierData = this.form.value;
             if (this.isEditMode) {
-                const id = this.route.snapshot.paramMap.get('id') || this.data?.supplier?.id;
+                const id = this.data?.supplier?.id || (!this.dialogRef ? this.route.snapshot.paramMap.get('id') : null);
                 if (id) {
                     this.financeService.updateSupplier(id, supplierData).subscribe({
                         next: () => this.finalize(supplierData),
