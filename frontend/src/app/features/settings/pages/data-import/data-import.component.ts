@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -68,25 +68,25 @@ export class DataImportComponent implements OnInit {
         depenses: [
             { value: 'date', label: 'Date' },
             { value: 'montant', label: 'Montant' },
-            { value: 'categorie', label: 'Catégorie' },
-            { value: 'description', label: 'Description / Libellé' },
+            { value: 'categorie', label: 'Cat�gorie' },
+            { value: 'description', label: 'Description / Libell�' },
             { value: 'modePaiement', label: 'Mode de Paiement' },
             { value: 'statut', label: 'Statut (PAYEE/IMPAYEE)' },
             { value: 'fournisseur', label: 'Fournisseur (Nom)' },
-            { value: 'numeroFacture', label: 'N° Facture (Exclure ligne si présent)' },
+            { value: 'numeroFacture', label: 'N� Facture (Exclure ligne si pr�sent)' },
             { value: 'notes', label: 'Notes' }
         ],
         clients: [
             { value: 'codeClient', label: 'Code Client (Interne)' },
             { value: 'titre', label: 'Titre (Mr, Mme...)' },
             { value: 'nom', label: 'Nom' },
-            { value: 'prenom', label: 'Prénom' },
+            { value: 'prenom', label: 'Pr�nom' },
             { value: 'dateNaissance', label: 'Date de Naissance' },
             { value: 'couvertureSociale', label: 'Couverture Sociale (Assurance)' },
-            { value: 'numCouvertureSociale', label: 'N° Couverture Sociale' },
-            { value: 'dateCreation', label: 'Date Saisie / Création' },
+            { value: 'numCouvertureSociale', label: 'N� Couverture Sociale' },
+            { value: 'dateCreation', label: 'Date Saisie / Cr�ation' },
             { value: 'raisonSociale', label: 'Raison Sociale' },
-            { value: 'telephone', label: 'Téléphone' },
+            { value: 'telephone', label: 'T�l�phone' },
             { value: 'email', label: 'Email' },
             { value: 'adresse', label: 'Adresse' },
             { value: 'ville', label: 'Ville' },
@@ -96,19 +96,19 @@ export class DataImportComponent implements OnInit {
             { value: 'identifiantFiscal', label: 'Identifiant Fiscal' },
             { value: 'registreCommerce', label: 'Registre Commerce' },
             { value: 'patente', label: 'Patente' },
-            { value: 'numeroAutorisation', label: 'Numéro Autorisation' },
+            { value: 'numeroAutorisation', label: 'Num�ro Autorisation' },
             { value: 'siteWeb', label: 'Site Web' },
             { value: 'commentaires', label: 'Commentaires' },
-            { value: 'pointsFidelite', label: 'Points Fidélité' },
+            { value: 'pointsFidelite', label: 'Points Fid�lit�' },
             { value: 'solde', label: 'Solde Initial' }
         ],
         products: [
             { value: 'codeInterne', label: 'Code Interne' },
             { value: 'codeBarres', label: 'Code Barre' },
-            { value: 'referenceFournisseur', label: 'Référence Fournisseur' },
-            { value: 'designation', label: 'Désignation' },
+            { value: 'referenceFournisseur', label: 'R�f�rence Fournisseur' },
+            { value: 'designation', label: 'D�signation' },
             { value: 'marque', label: 'Marque' },
-            { value: 'modele', label: 'Modèle' },
+            { value: 'modele', label: 'Mod�le' },
             { value: 'couleur', label: 'Couleur' },
             { value: 'typeArticle', label: 'Type Article' },
             { value: 'famille', label: 'Famille' },
@@ -120,7 +120,7 @@ export class DataImportComponent implements OnInit {
             { value: 'prixVenteTTC', label: 'Prix Vente TTC' },
             { value: 'coefficient', label: 'Coefficient' },
             { value: 'tauxTVA', label: 'Taux TVA' },
-            { value: 'quantiteActuelle', label: 'Quantité' },
+            { value: 'quantiteActuelle', label: 'Quantit�' },
             { value: 'seuilAlerte', label: 'Seuil Alerte' },
             { value: 'photo', label: 'URL Photo' }, // Added
             { value: 'statut', label: 'Statut' } // Added
@@ -129,48 +129,48 @@ export class DataImportComponent implements OnInit {
             // Identifiants Client
             { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
             { value: 'nom', label: 'Nom Client (Si code absent)' },
-            { value: 'telephone', label: 'Téléphone Client (Si code absent)' },
+            { value: 'telephone', label: 'T�l�phone Client (Si code absent)' },
 
             // Infos Fiche
-            { value: 'numero', label: 'N° Fiche / Dossier' },
-            { value: 'valide', label: 'Validé (Oui/Non)' },
-            { value: 'facture', label: 'Facturé (Oui/Non)' },
+            { value: 'numero', label: 'N� Fiche / Dossier' },
+            { value: 'valide', label: 'Valid� (Oui/Non)' },
+            { value: 'facture', label: 'Factur� (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier (Livre, Commande...)' },
-            { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateCreation', label: 'Date de Cr�ation' },
             { value: 'dateEmission', label: 'Date Facture' },
-            { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
+            { value: 'dateLivraisonEstimee', label: 'Date Livraison Estim�e' },
             { value: 'montantTotal', label: 'Montant Total (TTC)' },
-            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
-            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
+            { value: 'montantPaye', label: 'Acompte / Pay� (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) � CE' },
 
             // Ordonnance - OD
-            { value: 'od_sphere', label: 'Sphère OD' },
+            { value: 'od_sphere', label: 'Sph�re OD' },
             { value: 'od_cylindre', label: 'Cylindre OD' },
             { value: 'od_axe', label: 'Axe OD' },
             { value: 'od_addition', label: 'Addition OD' },
-            { value: 'ep_od', label: 'Écart Pupillaire OD' },
+            { value: 'ep_od', label: '�cart Pupillaire OD' },
 
             // Ordonnance - OG
-            { value: 'og_sphere', label: 'Sphère OG' },
+            { value: 'og_sphere', label: 'Sph�re OG' },
             { value: 'og_cylindre', label: 'Cylindre OG' },
             { value: 'og_axe', label: 'Axe OG' },
             { value: 'og_addition', label: 'Addition OG' },
-            { value: 'ep_og', label: 'Écart Pupillaire OG' },
+            { value: 'ep_og', label: '�cart Pupillaire OG' },
 
             // Medecin / Date
             { value: 'date_ordonnance', label: 'Date Ordonnance' },
-            { value: 'nom_medecin', label: 'Nom du Médecin' },
+            { value: 'nom_medecin', label: 'Nom du M�decin' },
 
             // Monture
             { value: 'monture_marque', label: 'Monture: Marque' },
-            { value: 'monture_modele', label: 'Monture: Modèle' },
-            { value: 'monture_reference', label: 'Monture: Référence' },
+            { value: 'monture_modele', label: 'Monture: Mod�le' },
+            { value: 'monture_reference', label: 'Monture: R�f�rence' },
             { value: 'monture_prix', label: 'Monture: Prix Vente' },
 
             // Verres
             { value: 'verres_type', label: 'Verres: Type (Progressif, etc.)' },
             { value: 'verres_indice', label: 'Verres: Indice' },
-            { value: 'verres_matiere', label: 'Verres: Matière' },
+            { value: 'verres_matiere', label: 'Verres: Mati�re' },
             { value: 'verres_marque', label: 'Verres: Marque' },
             { value: 'verres_traitement', label: 'Verres: Traitement' },
             { value: 'verres_prix_od', label: 'Verres: Prix OD' },
@@ -178,11 +178,11 @@ export class DataImportComponent implements OnInit {
 
             // Split Verres (Optionnel)
             { value: 'verres_marque_od', label: 'V OD: Marque' },
-            { value: 'verres_matiere_od', label: 'V OD: Matière' },
+            { value: 'verres_matiere_od', label: 'V OD: Mati�re' },
             { value: 'verres_indice_od', label: 'V OD: Indice' },
             { value: 'verres_traitement_od', label: 'V OD: Traitement' },
             { value: 'verres_marque_og', label: 'V OG: Marque' },
-            { value: 'verres_matiere_og', label: 'V OG: Matière' },
+            { value: 'verres_matiere_og', label: 'V OG: Mati�re' },
             { value: 'verres_indice_og', label: 'V OG: Indice' },
             { value: 'verres_traitement_og', label: 'V OG: Traitement' },
 
@@ -192,168 +192,168 @@ export class DataImportComponent implements OnInit {
         fiches_lentilles: [
             { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
             { value: 'nom', label: 'Nom Client (Si code absent)' },
-            { value: 'telephone', label: 'Téléphone Client (Si code absent)' },
+            { value: 'telephone', label: 'T�l�phone Client (Si code absent)' },
 
             // Prescription Lentilles - OD
-            { value: 'od_sphere', label: 'L1 OD: Sphère' },
+            { value: 'od_sphere', label: 'L1 OD: Sph�re' },
             { value: 'od_cylindre', label: 'L1 OD: Cylindre' },
             { value: 'od_axe', label: 'L1 OD: Axe' },
             { value: 'od_addition', label: 'L1 OD: Addition' },
             { value: 'od_rayon', label: 'L1 OD: Rayon (BC)' },
-            { value: 'od_diametre', label: 'L1 OD: Diamètre' },
+            { value: 'od_diametre', label: 'L1 OD: Diam�tre' },
             { value: 'od_k1', label: 'L1 OD: K1' },
             { value: 'od_k2', label: 'L1 OD: K2' },
 
             // Prescription Lentilles - OG
-            { value: 'og_sphere', label: 'L1 OG: Sphère' },
+            { value: 'og_sphere', label: 'L1 OG: Sph�re' },
             { value: 'og_cylindre', label: 'L1 OG: Cylindre' },
             { value: 'og_axe', label: 'L1 OG: Axe' },
             { value: 'og_addition', label: 'L1 OG: Addition' },
             { value: 'og_rayon', label: 'L1 OG: Rayon (BC)' },
-            { value: 'og_diametre', label: 'L1 OG: Diamètre' },
+            { value: 'og_diametre', label: 'L1 OG: Diam�tre' },
             { value: 'og_k1', label: 'L1 OG: K1' },
             { value: 'og_k2', label: 'L1 OG: K2' },
 
-            // Détails Lentilles
+            // D�tails Lentilles
             { value: 'lentilles_marque', label: 'L1: Marque' },
-            { value: 'lentilles_modele', label: 'L1: Modèle' },
+            { value: 'lentilles_modele', label: 'L1: Mod�le' },
             { value: 'lentilles_usage', label: 'L1: Usage' },
 
             // Infos Fiche
-            { value: 'numero', label: 'N° Fiche / Dossier' },
-            { value: 'valide', label: 'Validé (Oui/Non)' },
-            { value: 'facture', label: 'Facturé (Oui/Non)' },
+            { value: 'numero', label: 'N� Fiche / Dossier' },
+            { value: 'valide', label: 'Valid� (Oui/Non)' },
+            { value: 'facture', label: 'Factur� (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier' },
-            { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateCreation', label: 'Date de Cr�ation' },
             { value: 'dateEmission', label: 'Date Facture' },
-            { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
+            { value: 'dateLivraisonEstimee', label: 'Date Livraison Estim�e' },
             { value: 'montantTotal', label: 'Montant Total (TTC)' },
-            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
-            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
+            { value: 'montantPaye', label: 'Acompte / Pay� (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) � CE' },
             { value: 'notes', label: 'Notes / Observations' },
             { value: 'fiche_type', label: 'Type Manuel (monture/lentilles)' }
         ],
         fiches_produits: [
             { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
             { value: 'nom', label: 'Nom Client (Si code absent)' },
-            { value: 'telephone', label: 'Téléphone Client (Si code absent)' },
+            { value: 'telephone', label: 'T�l�phone Client (Si code absent)' },
 
-            // Produit vendu (Sera traité comme une ligne d'accessoire)
-            { value: 'produit_ref', label: 'P1: Référence' },
-            { value: 'produit_designation', label: 'P1: Désignation' },
-            { value: 'produit_qte', label: 'P1: Quantité' },
+            // Produit vendu (Sera trait� comme une ligne d'accessoire)
+            { value: 'produit_ref', label: 'P1: R�f�rence' },
+            { value: 'produit_designation', label: 'P1: D�signation' },
+            { value: 'produit_qte', label: 'P1: Quantit�' },
             { value: 'produit_prix', label: 'P1: Prix Unitaire' },
-            { value: 'numero', label: 'Numéro Dossier' },
+            { value: 'numero', label: 'Num�ro Dossier' },
 
             // Infos Fiche
             { value: 'statut', label: 'Statut Dossier' },
-            { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateCreation', label: 'Date de Cr�ation' },
             { value: 'dateEmission', label: 'Date Facture' },
-            { value: 'dateLivraisonEstimee', label: 'Date Livraison Estimée' },
-            { value: 'valide', label: 'Validé (Oui/Non)' },
-            { value: 'facture', label: 'Facturé (Oui/Non)' },
+            { value: 'dateLivraisonEstimee', label: 'Date Livraison Estim�e' },
+            { value: 'valide', label: 'Valid� (Oui/Non)' },
+            { value: 'facture', label: 'Factur� (Oui/Non)' },
             { value: 'montantTotal', label: 'Montant Total (TTC)' },
-            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
-            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
+            { value: 'montantPaye', label: 'Acompte / Pay� (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) � CE' },
             { value: 'notes', label: 'Notes / Observations' }
         ],
         fiches_unifiees: [
             // IDENTIFICATION (CRUCIAL)
             { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
             { value: 'nom', label: 'Nom Client (Si code absent)' },
-            { value: 'telephone', label: 'Téléphone Client (Si code absent)' },
+            { value: 'telephone', label: 'T�l�phone Client (Si code absent)' },
             { value: 'fiche_type', label: 'Type Manuel (monture/lentilles)' },
-            { value: 'numero', label: 'Numéro Dossier' },
+            { value: 'numero', label: 'Num�ro Dossier' },
             { value: 'fiche_id', label: 'ID Fiche / Regroupement' },
 
             // PRESCRIPTION COMMUNE
-            { value: 'od_sphere', label: 'OD: Sphère' },
+            { value: 'od_sphere', label: 'OD: Sph�re' },
             { value: 'od_cylindre', label: 'OD: Cylindre' },
             { value: 'od_axe', label: 'OD: Axe' },
             { value: 'od_addition', label: 'OD: Addition' },
-            { value: 'og_sphere', label: 'OG: Sphère' },
+            { value: 'og_sphere', label: 'OG: Sph�re' },
             { value: 'og_cylindre', label: 'OG: Cylindre' },
             { value: 'og_axe', label: 'OG: Axe' },
             { value: 'og_addition', label: 'OG: Addition' },
 
-            // PARAMÈTRES LENTILLES (L1)
+            // PARAM�TRES LENTILLES (L1)
             { value: 'od_rayon', label: 'L1 OD: Rayon (BC)' },
-            { value: 'od_diametre', label: 'L1 OD: Diamètre' },
+            { value: 'od_diametre', label: 'L1 OD: Diam�tre' },
             { value: 'od_k1', label: 'L1 OD: K1' },
             { value: 'od_k2', label: 'L1 OD: K2' },
             { value: 'og_rayon', label: 'L1 OG: Rayon (BC)' },
-            { value: 'og_diametre', label: 'L1 OG: Diamètre' },
+            { value: 'og_diametre', label: 'L1 OG: Diam�tre' },
             { value: 'og_k1', label: 'L1 OG: K1' },
             { value: 'og_k2', label: 'L1 OG: K2' },
 
-            // Équipement 1: Monture
+            // �quipement 1: Monture
             { value: 'monture_marque', label: 'M1: Marque' },
-            { value: 'monture_modele', label: 'M1: Modèle' },
-            { value: 'monture_reference', label: 'M1: Référence' },
+            { value: 'monture_modele', label: 'M1: Mod�le' },
+            { value: 'monture_reference', label: 'M1: R�f�rence' },
             { value: 'monture_prix', label: 'M1: Prix Vente' },
 
-            // Équipement 1: Verres (Unifiés ou OD/OG)
+            // �quipement 1: Verres (Unifi�s ou OD/OG)
             { value: 'verres_marque', label: 'V1: Marque' },
             { value: 'verres_type', label: 'V1: Type' },
             { value: 'verres_indice', label: 'V1: Indice' },
-            { value: 'verres_matiere', label: 'V1: Matière' },
+            { value: 'verres_matiere', label: 'V1: Mati�re' },
             { value: 'verres_traitement', label: 'V1: Traitement' },
             { value: 'verres_prix_od', label: 'V1: Prix OD' },
             { value: 'verres_prix_og', label: 'V1: Prix OG' },
 
             // Split Verres 1 (Optionnel: si colonnes distinctes OD/OG)
             { value: 'verres_marque_od', label: 'V1 OD: Marque' },
-            { value: 'verres_matiere_od', label: 'V1 OD: Matière' },
+            { value: 'verres_matiere_od', label: 'V1 OD: Mati�re' },
             { value: 'verres_indice_od', label: 'V1 OD: Indice' },
             { value: 'verres_marque_og', label: 'V1 OG: Marque' },
-            { value: 'verres_matiere_og', label: 'V1 OG: Matière' },
+            { value: 'verres_matiere_og', label: 'V1 OG: Mati�re' },
             { value: 'verres_indice_og', label: 'V1 OG: Indice' },
             { value: 'verres_traitement_od', label: 'V1 OD: Traitement' },
             { value: 'verres_traitement_og', label: 'V1 OG: Traitement' },
 
-            { value: 'ep_od', label: 'Écart Pupillaire OD' },
-            { value: 'ep_og', label: 'Écart Pupillaire OG' },
+            { value: 'ep_od', label: '�cart Pupillaire OD' },
+            { value: 'ep_og', label: '�cart Pupillaire OG' },
 
-            // Équipement 2: Monture + Verres
+            // �quipement 2: Monture + Verres
             { value: 'monture2_marque', label: 'M2: Marque' },
-            { value: 'monture2_modele', label: 'M2: Modèle' },
-            { value: 'monture2_reference', label: 'M2: Référence' },
+            { value: 'monture2_modele', label: 'M2: Mod�le' },
+            { value: 'monture2_reference', label: 'M2: R�f�rence' },
             { value: 'monture2_prix', label: 'M2: Prix Vente' },
             { value: 'verres2_marque', label: 'V2: Marque' },
-            { value: 'verres2_matiere', label: 'V2: Matière' },
-            { value: 'verres2_matiere_od', label: 'V2 OD: Matière' },
-            { value: 'verres2_matiere_og', label: 'V2 OG: Matière' },
+            { value: 'verres2_matiere', label: 'V2: Mati�re' },
+            { value: 'verres2_matiere_od', label: 'V2 OD: Mati�re' },
+            { value: 'verres2_matiere_og', label: 'V2 OG: Mati�re' },
             { value: 'verres2_indice', label: 'V2: Indice' },
             { value: 'verres2_prix_od', label: 'V2: Prix OD' },
             { value: 'verres2_prix_og', label: 'V2: Prix OG' },
 
             // Lentilles 1 & 2
             { value: 'lentilles_marque', label: 'L1: Marque' },
-            { value: 'lentilles_modele', label: 'L1: Modèle' },
+            { value: 'lentilles_modele', label: 'L1: Mod�le' },
             { value: 'lentilles_usage', label: 'L1: Usage' },
             { value: 'lentilles_prix', label: 'L1: Prix' },
             { value: 'lentille2_marque', label: 'L2: Marque' },
-            { value: 'lentille2_modele', label: 'L2: Modèle' },
+            { value: 'lentille2_modele', label: 'L2: Mod�le' },
             { value: 'lentilles_prix2', label: 'L2: Prix' },
 
             // Produits / Accessoires 1 & 2
-            { value: 'produit_ref', label: 'P1: Référence' },
-            { value: 'produit_designation', label: 'P1: Désignation' },
+            { value: 'produit_ref', label: 'P1: R�f�rence' },
+            { value: 'produit_designation', label: 'P1: D�signation' },
             { value: 'produit_prix', label: 'P1: Prix' },
-            { value: 'produit2_ref', label: 'P2: Référence' },
-            { value: 'produit2_designation', label: 'P2: Désignation' },
+            { value: 'produit2_ref', label: 'P2: R�f�rence' },
+            { value: 'produit2_designation', label: 'P2: D�signation' },
             { value: 'produit2_prix', label: 'P2: Prix' },
 
             // Infos Communes
-            { value: 'dateCreation', label: 'Date de Création' },
+            { value: 'dateCreation', label: 'Date de Cr�ation' },
             { value: 'dateEmission', label: 'Date Facture' },
-            { value: 'valide', label: 'Validé (Oui/Non)' },
-            { value: 'facture', label: 'Facturé (Oui/Non)' },
+            { value: 'valide', label: 'Valid� (Oui/Non)' },
+            { value: 'facture', label: 'Factur� (Oui/Non)' },
             { value: 'statut', label: 'Statut Dossier' },
             { value: 'montantTotal', label: 'Prix Total (TTC)' },
-            { value: 'montantPaye', label: 'Acompte / Payé (CB)' },
-            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) — CE' },
-            { value: 'nom_medecin', label: 'Nom du Médecin' },
+            { value: 'montantPaye', label: 'Acompte / Pay� (CB)' },
+            { value: 'avecFacture', label: 'Avec Facture ? (VRAI/FAUX) � CE' },
+            { value: 'nom_medecin', label: 'Nom du M�decin' },
             { value: 'fournisseur', label: 'Fournisseur' },
             { value: 'dateLivraisonEstimee', label: 'Date Livraison (Est.)' },
             { value: 'notes', label: 'Notes / Observations' }
@@ -362,7 +362,7 @@ export class DataImportComponent implements OnInit {
             { value: 'code', label: 'Code Fournisseur' },
             { value: 'nom', label: 'Nom / Raison Sociale' },
             { value: 'contact', label: 'Personne de Contact' },
-            { value: 'telephone', label: 'Téléphone' },
+            { value: 'telephone', label: 'T�l�phone' },
             { value: 'email', label: 'Email' },
             { value: 'adresse', label: 'Adresse' },
             { value: 'ville', label: 'Ville' },
@@ -377,48 +377,48 @@ export class DataImportComponent implements OnInit {
             { value: 'conditionsPaiement', label: 'Conditions de Paiement' }
         ],
         factures_fournisseurs: [
-            { value: 'numeroFacture', label: 'N° Facture' },
-            { value: 'referenceInterne', label: 'Référence Interne / nPiece' },
+            { value: 'numeroFacture', label: 'N� Facture' },
+            { value: 'referenceInterne', label: 'R�f�rence Interne / nPiece' },
             { value: 'codeFournisseur', label: 'Code Fournisseur' },
             { value: 'nomFournisseur', label: 'Nom Fournisseur (si code absent)' },
             { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
             { value: 'nomClient', label: 'Nom Client (Si code absent)' },
-            { value: 'telephoneClient', label: 'Téléphone Client (Si code absent)' },
-            { value: 'ficheNumero', label: 'N° Fiche / Dossier' },
+            { value: 'telephoneClient', label: 'T�l�phone Client (Si code absent)' },
+            { value: 'ficheNumero', label: 'N� Fiche / Dossier' },
             { value: 'dateEmission', label: 'Date Facture' },
-            { value: 'dateEcheance', label: 'Date Échéance' },
+            { value: 'dateEcheance', label: 'Date �ch�ance' },
             { value: 'montantHT', label: 'Montant HT' },
             { value: 'montantTVA', label: 'Montant TVA' },
             { value: 'montantTTC', label: 'Montant TTC' },
-            { value: 'quantite', label: 'Quantité d\'articles' },
+            { value: 'quantite', label: 'Quantit� d\'articles' },
             { value: 'statut', label: 'Statut (A_PAYER/PAYEE/PARTIELLE)' },
             { value: 'type', label: 'Type (ACHAT_STOCK/AUTRE)' },
             { value: 'isBL', label: 'Est un BL ? (VRAI/FAUX)' },
-            { value: 'modePaiement', label: 'Mode de Règlement (Pour échéance auto)' },
+            { value: 'modePaiement', label: 'Mode de R�glement (Pour �ch�ance auto)' },
             { value: 'notes', label: 'Notes' }
         ],
         paiements_fournisseurs: [
-            { value: 'numeroFacture', label: 'N° Facture Fournisseur (Ou nPiece)' },
-            { value: 'referenceInterne', label: 'Référence Interne / nPiece' },
-            { value: 'ficheNumero', label: 'N° Fiche / Dossier' },
+            { value: 'numeroFacture', label: 'N� Facture Fournisseur (Ou nPiece)' },
+            { value: 'referenceInterne', label: 'R�f�rence Interne / nPiece' },
+            { value: 'ficheNumero', label: 'N� Fiche / Dossier' },
             { value: 'codeFournisseur', label: 'Code Fournisseur' },
             { value: 'nomFournisseur', label: 'Nom Fournisseur (si code absent)' },
             { value: 'datePaiement', label: 'Date Paiement' },
-            { value: 'montant', label: 'Montant Payé' },
-            { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Virement)' },
-            { value: 'reference', label: 'Référence (N° Chèque/Virement)' },
-            { value: 'dateEcheance', label: 'Date Échéance (Chèque/LCN)' },
+            { value: 'montant', label: 'Montant Pay�' },
+            { value: 'modePaiement', label: 'Mode Paiement (Esp�ces/Ch�que/Virement)' },
+            { value: 'reference', label: 'R�f�rence (N� Ch�que/Virement)' },
+            { value: 'dateEcheance', label: 'Date �ch�ance (Ch�que/LCN)' },
             { value: 'banque', label: 'Banque' },
             { value: 'notes', label: 'Notes' }
         ],
         factures_ventes: [
-            { value: 'numero', label: 'N° Facture' },
-            { value: 'fiche', label: 'N° Fiche / Dossier' },
+            { value: 'numero', label: 'N� Facture' },
+            { value: 'fiche', label: 'N� Fiche / Dossier' },
             { value: 'codeClient', label: 'Code Client' },
             { value: 'nomClient', label: 'Nom Client (si code absent)' },
             { value: 'type', label: 'Type (DEVIS/FACTURE/BON_COMMANDE)' },
             { value: 'dateEmission', label: 'Date Facture' },
-            { value: 'dateEcheance', label: 'Date Échéance' },
+            { value: 'dateEcheance', label: 'Date �ch�ance' },
             { value: 'totalHT', label: 'Total HT' },
             { value: 'totalTVA', label: 'Total TVA' },
             { value: 'totalTTC', label: 'Total TTC' },
@@ -428,13 +428,13 @@ export class DataImportComponent implements OnInit {
         paiements_clients: [
             { value: 'codeClient', label: 'Code Client (Reconnaissance)' },
             { value: 'nomClient', label: 'Nom Client (Si code absent)' },
-            { value: 'fiche', label: 'N° Fiche / Dossier (Compteur)' },
-            { value: 'numeroFacture', label: 'N° Facture' },
+            { value: 'fiche', label: 'N� Fiche / Dossier (Compteur)' },
+            { value: 'numeroFacture', label: 'N� Facture' },
             { value: 'datePaiement', label: 'Date Paiement' },
-            { value: 'dateEcheance', label: 'Date Chèque / Échéance' },
-            { value: 'montant', label: 'Montant Payé' },
-            { value: 'modePaiement', label: 'Mode Paiement (Espèces/Chèque/Carte/Virement)' },
-            { value: 'reference', label: 'Référence' },
+            { value: 'dateEcheance', label: 'Date Ch�que / �ch�ance' },
+            { value: 'montant', label: 'Montant Pay�' },
+            { value: 'modePaiement', label: 'Mode Paiement (Esp�ces/Ch�que/Carte/Virement)' },
+            { value: 'reference', label: 'R�f�rence' },
             { value: 'banque', label: 'Banque' },
             { value: 'notes', label: 'Notes' }
         ]
@@ -461,14 +461,14 @@ export class DataImportComponent implements OnInit {
         const type = this.importForm.get('type')?.value;
         if (!type) return;
         const currentMapping = this.mappingForm.value;
-        // Only save non-empty values
+        // Save ALL fields including empty ones so intentionally-ignored fields are preserved
         const toSave: { [key: string]: string } = {};
         Object.entries(currentMapping).forEach(([k, v]) => {
-            if (v) toSave[k] = v as string;
+            toSave[k] = (v as string) || ''; // Empty string = intentionally ignored
         });
         localStorage.setItem(this.defaultMappingKey(type), JSON.stringify(toSave));
         this.snackBar.open(
-            `✅ Mapping sauvegardé comme défaut pour "${type}"`,
+            `? Mapping sauvegard� comme d�faut pour "${type}"`,
             'Fermer',
             { duration: 3000 }
         );
@@ -532,12 +532,12 @@ export class DataImportComponent implements OnInit {
                 console.log('Warehouses loaded:', data);
                 this.warehouses = data;
                 if (this.warehouses.length === 0) {
-                    this.snackBar.open('Aucun entrepôt trouvé', 'Fermer', { duration: 3000 });
+                    this.snackBar.open('Aucun entrep�t trouv�', 'Fermer', { duration: 3000 });
                 }
             },
             error: (err) => {
                 console.error('Error loading warehouses:', err);
-                this.snackBar.open('Erreur lors du chargement des entrepôts', 'Fermer');
+                this.snackBar.open('Erreur lors du chargement des entrep�ts', 'Fermer');
             }
         });
     }
@@ -553,13 +553,13 @@ export class DataImportComponent implements OnInit {
         if (!this.selectedFile) return Promise.resolve();
 
         this.isUploading = true;
-        console.log('🔵 Starting upload for file:', this.selectedFile.name);
+        console.log('?? Starting upload for file:', this.selectedFile.name);
 
         return new Promise((resolve, reject) => {
             this.importService.uploadFile(this.selectedFile!).subscribe({
                 next: (res) => {
-                    console.log('🟢 Upload response received:', res);
-                    console.log('🔍 Response structure check:');
+                    console.log('?? Upload response received:', res);
+                    console.log('?? Response structure check:');
                     console.log('  - typeof res:', typeof res);
                     console.log('  - res.headers exists?', 'headers' in res);
                     console.log('  - res.headers value:', res.headers);
@@ -573,7 +573,7 @@ export class DataImportComponent implements OnInit {
                     this.previewData = res.preview || [];
                     this.fullData = res.data || []; // Capture full data
 
-                    console.log('📊 After assignment:');
+                    console.log('?? After assignment:');
                     console.log('  - this.csvHeaders:', this.csvHeaders);
                     console.log('  - this.csvHeaders.length:', this.csvHeaders.length);
                     console.log('  - this.previewData.length:', this.previewData.length);
@@ -583,15 +583,15 @@ export class DataImportComponent implements OnInit {
                     this.updateMappingControls();
 
                     if (this.csvHeaders.length === 0) {
-                        console.error('❌ No headers detected!');
-                        this.snackBar.open('Aucune colonne détectée dans le fichier', 'Fermer', { duration: 5000 });
+                        console.error('? No headers detected!');
+                        this.snackBar.open('Aucune colonne d�tect�e dans le fichier', 'Fermer', { duration: 5000 });
                     } else {
-                        console.log('✅ Headers detected successfully:', this.csvHeaders.length, 'columns');
+                        console.log('? Headers detected successfully:', this.csvHeaders.length, 'columns');
                     }
                     resolve();
                 },
                 error: (err) => {
-                    console.error('🔴 Upload error:', err);
+                    console.error('?? Upload error:', err);
                     this.snackBar.open('Erreur lors du chargement du fichier: ' + (err.error?.message || err.message), 'Fermer');
                     this.isUploading = false;
                     reject(err);
@@ -615,14 +615,14 @@ export class DataImportComponent implements OnInit {
         // 3. Load saved default mapping for this type
         const savedMapping = this.loadSavedMapping(type);
 
-        // AI-like Mapping Dictionary — French & English synonyms for every field
+        // AI-like Mapping Dictionary � French & English synonyms for every field
         const synonyms: { [key: string]: string[] } = {
-            // ─── CLIENT ───────────────────────────────────────────────────────
+            // --- CLIENT -------------------------------------------------------
             codeClient: ['code client', 'code', 'codeclient', 'id client', 'identifiant', 'ref client', 'numero client', 'client id', 'client code', 'no client', 'client', 'compteur'],
             titre: ['titre', 'civilite', 'civility', 'salutation', 'mr', 'mme', 'title'],
             nom: ['nom', 'name', 'last name', 'lastname', 'surname', 'family name', 'nom client', 'client name'],
-            prenom: ['prenom', 'first name', 'firstname', 'given name', 'givenname', 'prénom'],
-            dateNaissance: ['date naissance', 'naissance', 'birthday', 'birth date', 'dob', 'date de naissance', 'né le'],
+            prenom: ['prenom', 'first name', 'firstname', 'given name', 'givenname', 'pr�nom'],
+            dateNaissance: ['date naissance', 'naissance', 'birthday', 'birth date', 'dob', 'date de naissance', 'n� le'],
             couvertureSociale: ['couverture', 'assurance', 'mutuelle', 'cnam', 'cnss', 'securite sociale', 'insurance', 'coverage'],
             numCouvertureSociale: ['num couverture', 'numero assurance', 'num assurance', 'insurance number', 'num mutuelle'],
             dateCreation: ['date creation', 'date saisie', 'created at', 'created date', 'date ajout', 'date entree', 'date inscription', 'date ouverture'],
@@ -643,10 +643,10 @@ export class DataImportComponent implements OnInit {
             pointsFidelite: ['points', 'fidelite', 'loyalty', 'points fidelite'],
             solde: ['solde', 'balance', 'solde initial', 'initial balance'],
 
-            // ─── FICHE ────────────────────────────────────────────────────────
-            fiche_id: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'id fiche', 'fiche id', 'no fiche', 'n fiche', 'n° fiche'],
+            // --- FICHE --------------------------------------------------------
+            fiche_id: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'id fiche', 'fiche id', 'no fiche', 'n fiche', 'n� fiche'],
             fiche_type: ['type fiche', 'type dossier', 'categorie fiche', 'fiche type'],
-            numero: ['numero', 'num', 'n°', 'no', 'numero fiche', 'num fiche', 'n° fiche', 'dossier', 'id fiche', 'numero facture', 'invoice number'],
+            numero: ['numero', 'num', 'n�', 'no', 'numero fiche', 'num fiche', 'n� fiche', 'dossier', 'id fiche', 'numero facture', 'invoice number'],
             valide: ['valide', 'valid', 'validated', 'confirme', 'checkbox', 'coche'],
             facture: ['facture', 'facturation', 'facturee', 'invoiced', 'invoice', 'facture oui non'],
             statut: ['statut', 'status', 'etat', 'state', 'situation'],
@@ -656,7 +656,7 @@ export class DataImportComponent implements OnInit {
             avecFacture: ['avec facture', 'facture oui', 'factured', 'invoice status', 'ce', 'avec fact', 'a facture', 'facturation'],
             notes: ['notes', 'note', 'observations', 'remarques', 'commentaires', 'info', 'details'],
 
-            // ─── PRESCRIPTION ─────────────────────────────────────────────────
+            // --- PRESCRIPTION -------------------------------------------------
             od_sphere: ['sph od', 'sphere od', 'od sph', 'od sphere', 'sph d', 'sphere d', 'od', 'sph droit', 'sphere droit'],
             og_sphere: ['sph og', 'sphere og', 'og sph', 'og sphere', 'sph g', 'sphere g', 'og', 'sph gauche', 'sphere gauche'],
             od_cylindre: ['cyl od', 'cylindre od', 'od cyl', 'cyl d', 'cylindre d', 'cyl droit'],
@@ -670,7 +670,7 @@ export class DataImportComponent implements OnInit {
             date_ordonnance: ['date ordonnance', 'ordonnance', 'prescription date', 'date prescription'],
             nom_medecin: ['medecin', 'docteur', 'dr', 'doctor', 'ophtalmologue', 'ophtalmo', 'prescripteur'],
 
-            // ─── LENTILLES ────────────────────────────────────────────────────
+            // --- LENTILLES ----------------------------------------------------
             od_rayon: ['rayon od', 'bc od', 'base curve od', 'rc od', 'rayon d'],
             og_rayon: ['rayon og', 'bc og', 'base curve og', 'rc og', 'rayon g'],
             od_diametre: ['diametre od', 'diam od', 'diameter od', 'dia od'],
@@ -684,13 +684,13 @@ export class DataImportComponent implements OnInit {
             lentilles_usage: ['usage lentille', 'lentille usage', 'lens usage', 'usage l1', 'frequence'],
             lentilles_prix: ['prix lentille', 'lentille prix', 'lens price', 'prix l1', 'l1 prix'],
 
-            // ─── MONTURE ──────────────────────────────────────────────────────
+            // --- MONTURE ------------------------------------------------------
             monture_marque: ['marque monture', 'monture marque', 'frame brand', 'marque m1', 'm1 marque', 'marque'],
             monture_modele: ['modele monture', 'monture modele', 'frame model', 'modele m1', 'm1 modele', 'modele'],
             monture_reference: ['ref monture', 'monture ref', 'frame ref', 'reference monture', 'ref m1', 'm1 ref'],
             monture_prix: ['prix monture', 'monture prix', 'frame price', 'prix m1', 'm1 prix'],
 
-            // ─── VERRES ───────────────────────────────────────────────────────
+            // --- VERRES -------------------------------------------------------
             verres_type: ['type verre', 'verre type', 'lens type', 'type v1', 'progressif', 'unifocal', 'bifocal'],
             verres_indice: ['indice verre', 'verre indice', 'lens index', 'indice v1', 'indice'],
             verres_matiere: ['matiere verre', 'verre matiere', 'lens material', 'matiere v1', 'materiau'],
@@ -699,7 +699,7 @@ export class DataImportComponent implements OnInit {
             verres_prix_od: ['prix verre od', 'verre od prix', 'prix od', 'v1 od prix', 'prix verre droit'],
             verres_prix_og: ['prix verre og', 'verre og prix', 'prix og', 'v1 og prix', 'prix verre gauche'],
 
-            // ─── PRODUITS ─────────────────────────────────────────────────────
+            // --- PRODUITS -----------------------------------------------------
             codeInterne: ['code interne', 'code article', 'article code', 'internal code', 'sku', 'reference interne'],
             codeBarres: ['code barre', 'barcode', 'ean', 'upc', 'gtin', 'code barre'],
             referenceFournisseur: ['ref fournisseur', 'reference fournisseur', 'supplier ref', 'fournisseur ref'],
@@ -720,7 +720,7 @@ export class DataImportComponent implements OnInit {
             quantiteActuelle: ['quantite', 'qty', 'stock', 'qte', 'quantity', 'stock actuel'],
             seuilAlerte: ['seuil', 'alerte', 'alert', 'minimum stock', 'stock min', 'reorder point'],
 
-            // ─── FOURNISSEURS ─────────────────────────────────────────────────
+            // --- FOURNISSEURS -------------------------------------------------
             code: ['code', 'code fournisseur', 'supplier code', 'vendor code', 'ref fournisseur'],
             contact: ['contact', 'personne contact', 'contact person', 'interlocuteur'],
             rib: ['rib', 'iban', 'bank account', 'compte bancaire'],
@@ -729,11 +729,11 @@ export class DataImportComponent implements OnInit {
             cnss: ['cnss', 'social security', 'securite sociale'],
             rc: ['rc', 'registre commerce', 'trade register'],
 
-            // ─── FACTURES ─────────────────────────────────────────────────────
+            // --- FACTURES -----------------------------------------------------
             // Note: 'numero' and 'facture' keys are defined above in FICHE section (merged)
-            numeroFacture: ['numero facture', 'num facture', 'n° facture', 'invoice no', 'invoice number', 'facture', 'ref facture', 'nfacture', 'reference'],
-            referenceInterne: ['reference interne', 'npiece', 'n° piece', 'no piece', 'piece', 'piece jointe', 'n° jnl'],
-            fiche: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'n° fiche', 'no fiche', 'compteur', 'n° dossier'],
+            numeroFacture: ['numero facture', 'num facture', 'n� facture', 'invoice no', 'invoice number', 'facture', 'ref facture', 'nfacture', 'reference'],
+            referenceInterne: ['reference interne', 'npiece', 'n� piece', 'no piece', 'piece', 'piece jointe', 'n� jnl'],
+            fiche: ['fiche', 'dossier', 'num fiche', 'numero fiche', 'n� fiche', 'no fiche', 'compteur', 'n� dossier'],
             nomClient: ['nom client', 'client name', 'customer', 'customer name', 'nom'],
             type: ['type', 'type facture', 'invoice type', 'document type'],
             dateEmission: ['date facture', 'date emission', 'invoice date', 'date', 'date document', 'date creation', 'date virement'],
@@ -750,13 +750,13 @@ export class DataImportComponent implements OnInit {
             client: ['client', 'code client', 'id client', 'identifiant client', 'nom client'],
             telephoneClient: ['telephone client', 'tel client', 'phone customer', 'tel'],
 
-            // ─── PAIEMENTS ────────────────────────────────────────────────────
+            // --- PAIEMENTS ----------------------------------------------------
             datePaiement: ['date paiement', 'date reglement', 'payment date', 'date versement', 'date encaissement', 'date cb', 'date', 'date livraison', 'date retrait'],
             montant: ['montant', 'amount', 'montant paye', 'paid amount', 'reglement', 'versement', 'paiement'],
             modePaiement: ['mode paiement', 'mode reglement', 'payment method', 'moyen paiement', 'mode', 'type paiement', 'especes', 'cheque', 'virement'],
             reference: ['reference', 'ref', 'num cheque', 'numero cheque', 'num virement', 'transaction id', 'ref paiement'],
 
-            // ─── DEPENSES ─────────────────────────────────────────────────────
+            // --- DEPENSES -----------------------------------------------------
             date: ['date', 'date depense', 'expense date', 'date operation'],
             categorie: ['categorie', 'category', 'type depense', 'nature', 'rubrique'],
             description: ['description', 'libelle', 'designation', 'motif', 'objet', 'detail'],
@@ -768,21 +768,28 @@ export class DataImportComponent implements OnInit {
             const currentControl = this.mappingForm.get(field.value);
             const existingValue = currentControl?.value;
 
-            // Priority: existing value > saved default > auto-detected match
-            if (!existingValue) {
-                // Try saved default first
-                const savedValue = savedMapping[field.value] || '';
-                // If saved value is valid (still exists in current CSV headers), use it
-                // Accept saved value always when headers aren't loaded yet.
-                // Once headers are loaded, only accept if the column still exists.
-                const headersLoaded = this.csvHeaders.length > 0;
-                const resolvedSaved = savedValue && (!headersLoaded || this.csvHeaders.includes(savedValue) || savedValue === '') ? savedValue : '';
-                const bestMatch = resolvedSaved || this.findBestMatch(field.value, field.label, this.csvHeaders, synonyms[field.value] || []);
-
+            // Priority: existing value > saved mapping (key present = intentional) > auto-detected match
+            const hasSavedKey = Object.prototype.hasOwnProperty.call(savedMapping, field.value);
+            if (!existingValue && !hasSavedKey) {
+                // No saved mapping for this field -> auto-detect
+                const bestMatch = this.findBestMatch(field.value, field.label, this.csvHeaders, synonyms[field.value] || []);
                 if (!this.mappingForm.contains(field.value)) {
                     this.mappingForm.addControl(field.value, this.fb.control(bestMatch || ''));
                 } else {
                     this.mappingForm.get(field.value)?.setValue(bestMatch || '');
+                }
+            } else if (!existingValue && hasSavedKey) {
+                // Saved mapping exists for this field (value may be '' = intentionally ignored)
+                const savedValue = savedMapping[field.value] || '';
+                const headersLoaded = this.csvHeaders.length > 0;
+                // Only use saved column name if column still exists in current CSV
+                const resolvedSaved = savedValue && (!headersLoaded || this.csvHeaders.includes(savedValue)) ? savedValue : (hasSavedKey && savedValue === '' ? '' : null);
+                if (resolvedSaved !== null) {
+                    if (!this.mappingForm.contains(field.value)) {
+                        this.mappingForm.addControl(field.value, this.fb.control(resolvedSaved));
+                    } else {
+                        this.mappingForm.get(field.value)?.setValue(resolvedSaved);
+                    }
                 }
             }
             // Else: we keep the existing value (Persistence)
@@ -805,7 +812,7 @@ export class DataImportComponent implements OnInit {
         const matched = Object.values(this.mappingForm.value).filter(v => !!v).length;
         const total = this.currentFields.length;
         this.snackBar.open(
-            `✅ Mapping automatique : ${matched} / ${total} champs détectés`,
+            `? Mapping automatique : ${matched} / ${total} champs d�tect�s`,
             'Fermer',
             { duration: 4000 }
         );
@@ -964,12 +971,12 @@ export class DataImportComponent implements OnInit {
                 // If too many errors, cap them
                 if (this.importResult.errors.length > 500) {
                     this.importResult.errors = this.importResult.errors.slice(0, 500);
-                    this.importResult.errors.push('... Trop d\'erreurs (limite de 500 affichées)');
+                    this.importResult.errors.push('... Trop d\'erreurs (limite de 500 affich�es)');
                 }
             }
             this.importProgress = 100;
             this.cdr.detectChanges();
-            this.snackBar.open(`Import terminé avec succès : ${this.importResult.success} fiches créées`, 'OK', { duration: 5000 });
+            this.snackBar.open(`Import termin� avec succ�s : ${this.importResult.success} fiches cr��es`, 'OK', { duration: 5000 });
         } catch (err: any) {
             console.error('Import Error Trace:', err);
 
@@ -980,7 +987,7 @@ export class DataImportComponent implements OnInit {
             }
 
             const msg = err.status === 413 ? 'Partie du fichier trop volumineuse (413)' :
-                err.status === 504 ? 'Délai d\'attente dépassé (504)' :
+                err.status === 504 ? 'D�lai d\'attente d�pass� (504)' :
                     `Erreur (Batch ${this.currentBatchIndex}) : ${backendMsg || err.status || 'Connexion interrompue'}`;
 
             this.snackBar.open(msg, 'Fermer', { duration: 10000 });
@@ -1006,4 +1013,5 @@ export class DataImportComponent implements OnInit {
         }
     }
 }
+
 
