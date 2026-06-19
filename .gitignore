@@ -57,3 +57,8 @@ tmp_ssh/
 vps_dumps/
 *.zip
 
+
+# Database backups
+*.sql
+*.rar
+*.bak
