@@ -467,7 +467,90 @@
                             </mat-card-content>
                         </div>
                     </div>
+                </div> <!-- Close formGroupName="lentilles" -->
+                <!-- Produits et Accessoires -->
+                <div [formGroup]="ficheForm">
+                <div class="section-block" formArrayName="produits" style="margin-top:24px;">
+                    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <h3 style="margin:0;font-size:1rem;font-weight:600;color:#3f51b5;">
+                            <mat-icon style="vertical-align:middle;margin-right:6px;">inventory_2</mat-icon>
+                            Produits &amp; Accessoires
+                        </h3>
+                        <div style="display:flex;gap:10px;">
+                            <button mat-flat-button color="primary" type="button"
+                                (click)="openProductStockSearch()"
+                                [disabled]="!isEditMode"
+                                style="font-size:0.85rem;">
+                                <mat-icon>search</mat-icon> Rechercher au Stock
+                            </button>
+                            <button mat-stroked-button color="primary" type="button"
+                                (click)="addProduit()"
+                                [disabled]="!isEditMode"
+                                style="font-size:0.85rem;">
+                                <mat-icon>add</mat-icon> Ajouter Ligne Libre
+                            </button>
+                        </div>
+                    </div>
+
+                    <table style="width:100%;border-collapse:collapse;" *ngIf="produitsFormArray.length > 0">
+                        <thead>
+                            <tr style="background:#f5f5f5;font-size:0.82rem;color:#555;">
+                                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e0e0e0;">D�signation</th>
+                                <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #e0e0e0;width:90px;">Qt�</th>
+                                <th style="padding:8px 10px;text-align:right;border-bottom:1px solid #e0e0e0;width:120px;">Prix Unit. (DH)</th>
+                                <th style="padding:8px 10px;text-align:right;border-bottom:1px solid #e0e0e0;width:120px;">Total (DH)</th>
+                                <th style="width:44px;border-bottom:1px solid #e0e0e0;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let prodCtrl of produitsFormArray.controls; let i = index"
+                                [formGroupName]="i"
+                                style="border-bottom:1px solid #f0f0f0;">
+                                <td style="padding:6px 10px;">
+                                    <mat-form-field appearance="outline" style="width:100%;margin-bottom:-18px;">
+                                        <input matInput formControlName="designation" placeholder="D�signation du produit">
+                                    </mat-form-field>
+                                </td>
+                                <td style="padding:6px 10px;text-align:center;">
+                                    <mat-form-field appearance="outline" style="width:75px;margin-bottom:-18px;">
+                                        <input matInput type="number" formControlName="quantite" min="1" placeholder="1">
+                                    </mat-form-field>
+                                </td>
+                                <td style="padding:6px 10px;text-align:right;">
+                                    <mat-form-field appearance="outline" style="width:100px;margin-bottom:-18px;">
+                                        <input matInput type="number" formControlName="prixUnitaire" min="0" step="0.01" placeholder="0.00">
+                                    </mat-form-field>
+                                </td>
+                                <td style="padding:6px 10px;text-align:right;font-weight:600;color:#3f51b5;">
+                                    {{ ((prodCtrl.get('quantite')?.value || 0) * (prodCtrl.get('prixUnitaire')?.value || 0)) | number:'1.2-2' }} DH
+                                </td>
+                                <td style="padding:6px 10px;text-align:center;">
+                                    <button mat-icon-button color="warn" type="button"
+                                        (click)="removeProduit(i)"
+                                        [disabled]="!isEditMode"
+                                        title="Supprimer">
+                                        <mat-icon>delete_outline</mat-icon>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:#f9f9f9;">
+                                <td colspan="3" style="padding:8px 10px;text-align:right;font-weight:600;font-size:0.9rem;">Total Produits :</td>
+                                <td style="padding:8px 10px;text-align:right;font-weight:700;color:#3f51b5;font-size:0.95rem;">
+                                    {{ getProduitsTotal() | number:'1.2-2' }} DH
+                                </td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div *ngIf="produitsFormArray.length === 0"
+                        style="padding:16px;text-align:center;color:#999;font-size:0.88rem;border:1px dashed #ddd;border-radius:8px;">
+                        Aucun produit ajout�. Cliquez sur "Ajouter Produit" pour inclure des accessoires (ex: solution lentilles).
+                    </div>
                 </div>
+                </div><!-- close [formGroup]="ficheForm" wrapper for produits -->
             </mat-tab>
 
 

@@ -602,7 +602,7 @@ export class OutgoingPaymentListComponent implements OnInit {
     }
 
     viewDetail(payment: any, viewMode: boolean = false) {
-        if (payment.source === 'FACTURE_CLIENT') {
+        if (payment.source === 'FACTURE_CLIENT' || this.activeTab === 'UNPAID_CLIENTS') {
             // Navigate to Client Invoice page
             this.router.navigate(['/p/clients/factures', payment.id], { queryParams: { mode: 'view' } });
             return;
@@ -759,3 +759,4 @@ export class OutgoingPaymentListComponent implements OnInit {
         });
     }
 }
+

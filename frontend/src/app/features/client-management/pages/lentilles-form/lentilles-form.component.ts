@@ -3,7 +3,7 @@ import { CameraCaptureDialogComponent } from '../../../../shared/components/came
 import { OrderActionDialogComponent } from '../../../../shared/components/order-action-dialog/order-action-dialog.component';
 import { CommonModule } from '@angular/common';
 import { AdaptationModerneComponent } from './components/adaptation-moderne/adaptation-moderne.component';
-import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormArray, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
@@ -392,8 +392,77 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 casseHistorique: [[]],
                 nextBcMotive: [''],
                 bcHistorique: [[]]
-            })
+            }),
+
+            // Produits et Accessoires
+            produits: this.fb.array([])
         });
+    }
+
+    // --- Produits and Accessoires Logic ---
+
+    get produitsFormArray(): FormArray {
+        return this.ficheForm.get('produits') as FormArray;
+    }
+
+    addProduit(produit?: any): void {
+        // Build designation: use explicit designation field, or combine marque+modele, or nom
+        let designation = produit?.designation || '';
+        if (!designation && produit) {
+            const parts = [produit.marque, produit.modele || produit.modeleCommercial, produit.nom].filter(Boolean);
+            designation = parts.join(' ').trim();
+        }
+
+        const prodGroup = this.fb.group({
+            produitId: [produit?.produitId || produit?.id || null],
+            designation: [designation, Validators.required],
+            quantite: [produit?.quantite || 1, [Validators.required, Validators.min(1)]],
+            prixUnitaire: [produit?.prixUnitaire || produit?.prixVenteTTC || 0, [Validators.required, Validators.min(0)]],
+            reference: [produit?.reference || produit?.codeInterne || produit?.codeBarres || ''],
+            entrepotId: [produit?.entrepotId || null],
+            entrepotType: [produit?.entrepotType || produit?.entrepot?.type || null],
+            entrepotNom: [produit?.entrepotNom || produit?.entrepot?.nom || null]
+        });
+        this.produitsFormArray.push(prodGroup);
+        this.cdr.markForCheck();
+    }
+
+    openProductStockSearch(): void {
+        const dialogRef = this.dialog.open(StockSearchDialogComponent, {
+            width: '95vw',
+            maxWidth: '1600px',
+            height: '85vh',
+            data: {
+                context: 'sales',
+                initialTypeFilter: 'acc'
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                if (result.action === 'SELECT_MULTIPLE' && result.products) {
+                    result.products.forEach((p: any) => this.addProduit(p));
+                } else if ((result.action === 'SELECT' || result.action === 'ORDER_AND_SELL') && result.product) {
+                    this.addProduit(result.product);
+                } else if (!result.action && result.id) {
+                    this.addProduit(result);
+                }
+                this.cdr.markForCheck();
+            }
+        });
+    }
+
+    removeProduit(index: number): void {
+        this.produitsFormArray.removeAt(index);
+        this.cdr.markForCheck();
+    }
+
+    getProduitsTotal(): number {
+        return this.produitsFormArray.controls.reduce((total, ctrl) => {
+            const qte = parseFloat(ctrl.get('quantite')?.value) || 0;
+            const prix = parseFloat(ctrl.get('prixUnitaire')?.value) || 0;
+            return total + (qte * prix);
+        }, 0);
     }
 
     loadClient(): void {
@@ -425,6 +494,12 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 const wasDisabled = !this.isEditMode;
                 if (wasDisabled) this.ficheForm.enable();
 
+                // Restore produits array BEFORE patching/disabling to ensure child controls inherit disabled state
+                this.produitsFormArray.clear();
+                if (fiche.produits && Array.isArray(fiche.produits)) {
+                    fiche.produits.forEach((p: any) => this.addProduit(p));
+                }
+
                 const formPatch = {
                     ...fiche,
                     ordonnance: fiche.ordonnance || fiche.prescription || {},
@@ -432,6 +507,23 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                     adaptation: fiche.adaptation || {},
                     suiviCommande: fiche.suiviCommande || {}
                 };
+
+                // Map dateOrdonnance to datePrescription - ensure we always set a value (even null) to prevent
+                // the form default (new Date()) from persisting when loading an existing fiche
+                if (formPatch.ordonnance) {
+                    // Priority: datePrescription > dateOrdonnance > null
+                    const rawDate = formPatch.ordonnance.datePrescription || formPatch.ordonnance.dateOrdonnance || null;
+                    if (rawDate) {
+                        try {
+                            const d = new Date(rawDate);
+                            formPatch.ordonnance.datePrescription = isNaN(d.getTime()) ? null : d;
+                        } catch {
+                            formPatch.ordonnance.datePrescription = null;
+                        }
+                    } else {
+                        formPatch.ordonnance.datePrescription = null;
+                    }
+                }
 
                 // FIX: Slice dates for HTML native input type="date"
                 if (formPatch.suiviCommande) {
@@ -480,6 +572,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 if (this.linkedFacture?.statut === 'VENTE_EN_INSTANCE') {
                     this.checkReceptionForInstance(fiche);
                 }
+
+
 
                 console.log('✅ [loadFiche] Form populated. lentilles.od.marque:', 
                     this.ficheForm.get('lentilles.od.marque')?.value);
@@ -832,11 +926,15 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
         }
         this.loading = true;
         const formValue = this.ficheForm.getRawValue();
+        if (formValue.ordonnance && formValue.ordonnance.datePrescription) {
+            formValue.ordonnance.dateOrdonnance = formValue.ordonnance.datePrescription;
+        }
 
         // 1. Calculate Total
         const prixOD = parseFloat(formValue.lentilles.od.prix) || 0;
         const prixOG = parseFloat(formValue.lentilles.diffLentilles ? formValue.lentilles.og.prix : formValue.lentilles.od.prix) || 0;
-        const montantTotal = prixOD + prixOG;
+        const prixProduits = this.getProduitsTotal();
+        const montantTotal = prixOD + prixOG + prixProduits;
 
         // Sync standalone fournisseurCtrl to the form's suiviCommande.fournisseur before saving
         if (this.fournisseurCtrl?.value) {
@@ -860,7 +958,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
             prescription: formValue.ordonnance,
             lentilles: formValue.lentilles,
             adaptation: formValue.adaptation,
-            suiviCommande: formValue.suiviCommande
+            suiviCommande: formValue.suiviCommande,
+            produits: formValue.produits || []
         };
 
         console.log('📦 [onSubmit] Lentilles payload:', {
@@ -1818,28 +1917,16 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                     });
                 }
             } else {
-                // Unified
+                // Unified: same lens for both eyes -> 1 line with qty=2
                 const od = lentilles.od;
                 if (od && od.prix > 0) {
-                    // OD side
+                    const prixUnit = parseFloat(od.prix);
                     lignes.push({
-                        description: `Lentille OD: ${od.marque || ''} ${od.modele || ''} (${type} ${usage})`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: parseFloat(od.prix),
+                        description: `Lentilles ${od.marque || ''} ${od.modele || ''} (${type} ${usage}) - OD+OG`.trim(),
+                        qte: 2,
+                        prixUnitaireTTC: prixUnit,
                         remise: 0,
-                        totalTTC: parseFloat(od.prix),
-                        productId: od.productId || null,
-                        entrepotId: od.entrepotId || null,
-                        entrepotType: od.entrepotType || null,
-                        entrepotNom: od.entrepotNom || null
-                    });
-                    // OG side (same product)
-                    lignes.push({
-                        description: `Lentille OG: ${od.marque || ''} ${od.modele || ''} (${type} ${usage})`.trim(),
-                        qte: 1,
-                        prixUnitaireTTC: parseFloat(od.prix),
-                        remise: 0,
-                        totalTTC: parseFloat(od.prix),
+                        totalTTC: prixUnit * 2,
                         productId: od.productId || null,
                         entrepotId: od.entrepotId || null,
                         entrepotType: od.entrepotType || null,
@@ -1848,6 +1935,26 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
                 }
             }
         }
+
+        // Produits and Accessoires
+        const produits = (formValue.produits || []) as any[];
+        produits.forEach((p: any) => {
+            if (p.designation && p.quantite > 0) {
+                const total = (parseFloat(p.prixUnitaire) || 0) * (parseFloat(p.quantite) || 1);
+                lignes.push({
+                    description: p.designation,
+                    qte: parseFloat(p.quantite) || 1,
+                    prixUnitaireTTC: parseFloat(p.prixUnitaire) || 0,
+                    remise: 0,
+                    totalTTC: total,
+                    productId: p.produitId || null,
+                    entrepotId: p.entrepotId || null,
+                    entrepotType: p.entrepotType || null,
+                    entrepotNom: p.entrepotNom || null,
+                    type: 'PRODUIT'
+                });
+            }
+        });
 
         return lignes;
     }
@@ -2002,6 +2109,9 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
     saveFicheSilently(reload: boolean = true): void {
         if (!this.ficheId || this.ficheId === 'new' || !this.clientId) return;
         const formValue = this.ficheForm.getRawValue();
+        if (formValue.ordonnance && formValue.ordonnance.datePrescription) {
+            formValue.ordonnance.dateOrdonnance = formValue.ordonnance.datePrescription;
+        }
 
         const payload: any = {
             clientId: this.clientId,
@@ -2012,7 +2122,8 @@ export class LentillesFormComponent implements OnInit, OnDestroy {
             ordonnance: formValue.ordonnance,
             lentilles: formValue.lentilles,
             adaptation: formValue.adaptation,
-            suiviCommande: formValue.suiviCommande
+            suiviCommande: formValue.suiviCommande,
+            produits: formValue.produits || []
         };
 
         this.ficheService.updateFiche(this.ficheId, payload).subscribe({

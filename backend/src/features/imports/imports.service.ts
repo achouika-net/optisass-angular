@@ -1199,7 +1199,11 @@ export class ImportsService {
                 pm.og_axe ||
                 (pm.lentilles_marque_od &&
                   pm.lentilles_marque_og &&
-                  pm.lentilles_marque_od !== pm.lentilles_marque_og)
+                  pm.lentilles_marque_od !== pm.lentilles_marque_og) ||
+                (pm.lentilles_marque && pm.lentille2_marque && pm.lentilles_marque !== pm.lentille2_marque) ||
+                // Mark as different if spheres differ even without explicit og marque
+                (pm.od_sphere && pm.og_sphere && pm.od_sphere !== pm.og_sphere) ||
+                (pm.od_cylindre && pm.og_cylindre && pm.od_cylindre !== pm.og_cylindre)
               ),
               od: {
                 marque: pm.lentilles_marque_od || pm.lentilles_marque,
@@ -1213,8 +1217,16 @@ export class ImportsService {
                 quantite: parseNum(pm.lentilles_qte) || 1,
               },
               og: {
-                marque: pm.lentilles_marque_og || pm.lentilles_marque,
-                modele: pm.lentilles_modele_og || pm.lentilles_modele,
+                // Only fallback to shared marque when lenses are identical (no diffLentilles)
+                // Prevents OG inheriting OD power string (e.g. CLEAR55/-9.00) when OG has different sphere
+                marque: pm.lentilles_marque_og || pm.lentille2_marque ||
+                  ((!pm.og_sphere && !pm.og_cylindre) || (pm.og_sphere === pm.od_sphere && pm.og_cylindre === pm.od_cylindre)
+                    ? pm.lentilles_marque
+                    : null),
+                modele: pm.lentilles_modele_og || pm.lentille2_modele ||
+                  ((!pm.og_sphere && !pm.og_cylindre) || (pm.og_sphere === pm.od_sphere && pm.og_cylindre === pm.od_cylindre)
+                    ? pm.lentilles_modele
+                    : null),
                 rayon: parseNum(pm.og_rayon),
                 diametre: parseNum(pm.og_diametre),
                 sphere: parseNum(pm.og_sphere),
@@ -1354,7 +1366,12 @@ export class ImportsService {
                     content.lentilles.od.marque;
                   content.lentilles.og.marque =
                     m.lentilles_marque_og ||
-                    m.lentilles_marque ||
+                    m.lentille2_marque ||
+                    // Only use shared marque if lenses are the same (same sphere)
+                    ((!m.og_sphere && !content.lentilles.og.sphere) ||
+                     (content.lentilles.od.sphere === content.lentilles.og.sphere)
+                      ? m.lentilles_marque
+                      : null) ||
                     content.lentilles.og.marque;
                   content.lentilles.od.prix =
                     parseNum(m.lentilles_prix) || content.lentilles.od.prix;
@@ -1680,18 +1697,21 @@ export class ImportsService {
 
                   // 3. Lentilles
                   if (content.lentilles) {
-                    const prixLentilles =
-                      (content.lentilles.od?.prix || 0) +
-                      (content.lentilles.og?.prix || 0);
+                    const prixOD = content.lentilles.od?.prix || 0;
+                    const prixOG = content.lentilles.og?.prix || 0;
                     if (
-                      prixLentilles > 0 ||
+                      prixOD > 0 ||
+                      prixOG > 0 ||
                       content.lentilles.od?.marque ||
                       content.lentilles.og?.marque
                     ) {
+                      const isPair = (prixOD > 0 && prixOG > 0) || (content.lentilles.od?.marque && content.lentilles.og?.marque) || !content.lentilles.diffLentilles;
+                      const qte = isPair ? 2 : 1;
+                      const prixUnitaire = isPair ? (prixOD || prixOG || 0) : (prixOD + prixOG);
                       addLine(
                         'Lentilles de contact',
-                        1,
-                        prixLentilles,
+                        qte,
+                        prixUnitaire,
                         'LENTILLES',
                       );
                     }
@@ -2535,7 +2555,7 @@ export class ImportsService {
                 montant: montantTTC,
                 dateEcheance: dateEmission,
                 type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                statut: (dateEmission && dateEmission > new Date()) ? 'EN_ATTENTE' : 'REMIS_EN_BANQUE',
+                statut: (dateEmission && dateEmission > new Date()) ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
                 dateEncaissement: (dateEmission && dateEmission <= new Date()) ? dateEmission : null,
               },
             });
@@ -2766,7 +2786,7 @@ export class ImportsService {
                   montant: montantTTC || 0,
                   dateEcheance: dateEcheance || dateEmission,
                   type: paymentMode,
-                  statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : 'REMIS_EN_BANQUE',
+                  statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(paymentMode) ? 'REMIS_EN_BANQUE' : 'PAYEE'),
                   dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
                 },
               });
@@ -3036,7 +3056,7 @@ export class ImportsService {
                 dateEncaissement: dateReglement,
                 dateEcheance: dateReglement,
                 reference: safeRef,
-                statut: dateReglement > new Date() ? 'EN_ATTENTE' : 'REMIS_EN_BANQUE',
+                statut: dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
                 type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
                 banque: banque || undefined,
                 remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (nPiece: ${numeroFacture})`,
@@ -3052,7 +3072,7 @@ export class ImportsService {
                 dateEncaissement: dateReglement,
                 dateEcheance: dateReglement,
                 reference: safeRef,
-                statut: dateReglement > new Date() ? 'EN_ATTENTE' : 'REMIS_EN_BANQUE',
+                statut: dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
                 type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
                 banque: banque || undefined,
                 remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (Row ${index + 1})`,
@@ -3163,7 +3183,7 @@ export class ImportsService {
               dateEncaissement: dateReglement,
               dateEcheance: dateEcheanceVal || dateReglement,
               reference: safeRef,
-              statut: dateReglement > new Date() ? 'EN_ATTENTE' : 'REMIS_EN_BANQUE',
+              statut: dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
               banque: banque || undefined,
               remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`,
@@ -3178,7 +3198,7 @@ export class ImportsService {
               dateEncaissement: dateReglement,
               dateEcheance: dateEcheanceVal,
               reference: safeRef,
-              statut: dateReglement && dateReglement > new Date() ? 'EN_ATTENTE' : 'REMIS_EN_BANQUE',
+              statut: dateReglement && dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
               banque: banque || undefined,
             },
