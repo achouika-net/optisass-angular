@@ -31,7 +31,7 @@ export class ImportsService {
     if (s.includes('VIREMENT') || s.includes('PRELEVEMENT') || s.includes('PR??VEMENT') || s.includes('PR?L?VEMENT') || s.includes('PRLVEMENT') || s.includes('PRLEVEMENT') || s.includes('PRELVEMENT') || s.includes('PRLVEMENT')) return 'VIREMENT';
     if (s.includes('CARTE')) return 'CARTE';
     if (s.includes('AVOIR')) return 'AVOIR';
-    if (s.includes('GESTE')) return 'PRISE_EN_CHARGE';
+    if (s.includes('GESTE')) return 'GESTE_COMMERCIAL';
     if (s.includes('NON REGL') || s.includes('NON REGL?') || s.includes('NON REGLE') || s.includes('NON_REGLE') || s.includes('NON REGL') || s.includes('NON REGL')) return 'NON_REGLE';
     return s;
   }
