@@ -127,7 +127,7 @@ export class ImportsService {
   async parseFile(buffer: Buffer) {
     try {
       console.log(`Parsing buffer of size: ${buffer.length}`);
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      const workbook = XLSX.read(buffer, { type: 'buffer', codepage: 65001 }); // Force UTF-8 codepage
       console.log('Workbook read. Sheet names:', workbook.SheetNames);
 
       if (workbook.SheetNames.length === 0) {
