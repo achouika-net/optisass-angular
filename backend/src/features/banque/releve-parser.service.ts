@@ -187,19 +187,41 @@ export class ReleveParserService {
         continue;
       }
 
-      // Fallback: standard format
+      // Fallback: standard format (including concatenated dates like 22/0522/05)
+      let dateStr = '';
+      let rest = '';
       const stdMatch = cleanLine.match(/^\s*(\d{2}[\/\-]\d{2}[\/\-]\d{2,4})\s+(.+)$/);
       if (stdMatch) {
-        const dateStr = stdMatch[1];
-        const rest = stdMatch[2];
-        const parts = rest.split(/\s+/);
-        const numbers = parts.filter(p => /^[\d,\.]+$/.test(p));
-        const montantStr = numbers[numbers.length - 1];
-        if (!montantStr) continue;
-        const montant = parseFloat(montantStr.replace(',', '.'));
-        const desc = parts.slice(0, parts.length - numbers.length).join(' ');
-        const isDebit = this.determineIsDebit(desc);
-        transactions.push({ date: dateStr, description: desc, type: isDebit ? 'DEBIT' : 'CREDIT', montant, reference: '' });
+        dateStr = stdMatch[1];
+        rest = stdMatch[2];
+      } else {
+        const concatMatch = cleanLine.match(/^\s*(\d{2}[\/\-]\d{2}(?:[\/\-]\d{2,4})?)\d{2}[\/\-]\d{2}(?:[\/\-]\d{2,4})?\s+(.+)$/);
+        if (concatMatch) {
+          dateStr = concatMatch[1];
+          rest = concatMatch[2];
+          if (dateStr.length === 5) {
+            dateStr = dateStr + '/' + new Date().getFullYear();
+          }
+        }
+      }
+
+      if (dateStr && rest) {
+        // Extract amount from end of rest (e.g. "1 375,05" or "49,11")
+        const amountMatch = rest.match(/(\d{1,3}(?:\s\d{3})*(?:[\,\.]\d{2})?)\s*$/);
+        if (amountMatch) {
+          const montantStr = amountMatch[1];
+          const montant = parseFloat(montantStr.replace(/\s/g, '').replace(',', '.'));
+          const desc = rest.substring(0, amountMatch.index).trim();
+          const isDebit = this.determineIsDebit(desc);
+          transactions.push({
+            date: dateStr,
+            description: desc,
+            type: isDebit ? 'DEBIT' : 'CREDIT',
+            montant,
+            reference: ''
+          });
+          console.log('[PDF-PARSER] MATCHED STANDARD/CONCAT: ' + desc + ' | ' + montant + ' | ' + (isDebit ? 'DEBIT' : 'CREDIT'));
+        }
       }
 
       if (!atwMatch && !stdMatch && cleanLine.length > 10 && !cleanLine.match(/^[A-Z0-9]{6}/)) {

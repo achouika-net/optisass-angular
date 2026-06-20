@@ -70,7 +70,9 @@ export class BanqueService {
 
   async importReleve(parsedResult: any, compteBancaireId?: string, tenantId?: string) {
     const { transactions: parsedData, detectedAccountInfo } = parsedResult;
-    if (!parsedData || parsedData.length === 0) return null;
+    if (!parsedData || parsedData.length === 0) {
+      throw new BadRequestException("Aucune transaction n'a pu être extraite de ce document. Veuillez vérifier le format ou la mise en page.");
+    }
 
     let finalCompteId = compteBancaireId;
       let autoCreated = false;
