@@ -3846,10 +3846,10 @@ export class ImportsService {
 
 
         const modeSource = row[mapping.modePaiement]
-          ? String(row[mapping.modePaiement]).trim().toUpperCase()
+          ? this.normalizePaymentType(row[mapping.modePaiement])
           : 'ESPECES';
         const dateEcheanceRaw = this.parseDate(row[mapping.dateEcheance]);
-        const dateEcheanceVal = dateEcheanceRaw || (modeSource.includes('CHEQUE') || modeSource.includes('LCN') ? datePaiement : null);
+        const dateEcheanceVal = dateEcheanceRaw || (['CHEQUE', 'LCN'].includes(modeSource) ? datePaiement : null);
         const reference = row[mapping.reference]
           ? String(row[mapping.reference]).substring(0, 100)
           : null;
