@@ -1489,11 +1489,11 @@ export class ImportsService {
           });
 
           // Sum up montantPaye and analyze other business flags
-          const totalPaye = rows.reduce(
+          const totalPaye = (rows.reduce(
             (sum, r) => sum + (parseNum(r[mapping.montantPaye]) || 0),
             0,
-          );
-          const totalAmount = parseNum(pm.montantTotal) || 0;
+          )) / 100;
+          const totalAmount = (parseNum(pm.montantTotal) || 0) / 100;
 
           // --- LOGICAL MAPPING FOR DOCUMENT TYPE ---
           let isValide = true;
@@ -3510,7 +3510,7 @@ export class ImportsService {
           } else {
             // Fiche does not exist, let's create a placeholder Fiche (Dossier) for this invoice!
             try {
-              const rowTTC = parseFloat(String(row[mapping.totalTTC] || 0)) || 0;
+              const rowTTC = (parseFloat(String(row[mapping.totalTTC] || 0)) || 0) / 100;
               linkedFiche = await this.prisma.fiche.create({
                 data: {
                   id: crypto.randomUUID(),
@@ -3578,7 +3578,7 @@ export class ImportsService {
           continue;
         }
 
-        const totalTTC = parseFloat(String(row[mapping.totalTTC] || 0)) || 0;
+        const totalTTC = (parseFloat(String(row[mapping.totalTTC] || 0)) || 0) / 100;
         const totalHT = totalTTC / 1.2;
         const totalTVA = totalTTC - totalHT;
 

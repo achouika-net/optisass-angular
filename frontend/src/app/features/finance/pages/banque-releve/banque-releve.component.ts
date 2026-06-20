@@ -228,7 +228,7 @@ export class BanqueReleveComponent implements OnInit {
     this.http.post<any>(`${this.api}/rapprochement/auto`, {}).subscribe({
       next: (res) => {
         this.loading.set(false);
-        this.snack.open(`${res.matchedCount} transactions rapproch�es automatiquement !`, 'OK', { duration: 5000 });
+        this.snack.open(`${res.matchedCount} transactions rapproch�es automatiquement !`, 'OK', { duration: 5000 });
         this.loadRapprochement();
         this.loadAllTransactions();
       },
@@ -250,7 +250,7 @@ export class BanqueReleveComponent implements OnInit {
     }
     this.http.post<any>(`${this.api}/releves/import`, formData).subscribe({
       next: (res) => {
-        if (res.autoCreated) {
+        if (res && res.autoCreated) {
           this.snack.open('Nouveau compte bancaire créé automatiquement et relevé importé !', 'V', { duration: 5000 });
         } else {
           this.snack.open('Relevé importé et rapproché avec succès !', 'V', { duration: 4000 });
