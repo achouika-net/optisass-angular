@@ -213,8 +213,21 @@ export class ReleveParserService {
           const montant = parseFloat(montantStr.replace(/\s/g, '').replace(',', '.'));
           const desc = rest.substring(0, amountMatch.index).trim();
           const isDebit = this.determineIsDebit(desc);
+          let normalizedDate = '';
+          const dateParts = dateStr.split(/[\/\-]/);
+          if (dateParts.length === 3) {
+            let year = dateParts[2].trim();
+            if (year.length === 2) year = '20' + year;
+            normalizedDate = `${year}-${dateParts[1].trim()}-${dateParts[0].trim()}`;
+          } else if (dateParts.length === 2) {
+            const year = new Date().getFullYear().toString();
+            normalizedDate = `${year}-${dateParts[1].trim()}-${dateParts[0].trim()}`;
+          } else {
+            normalizedDate = dateStr;
+          }
+
           transactions.push({
-            date: dateStr,
+            date: normalizedDate,
             description: desc,
             type: isDebit ? 'DEBIT' : 'CREDIT',
             montant,
