@@ -3835,7 +3835,7 @@ export class ImportsService {
           continue;
         }
 
-        const montant = Math.abs(parseFloat(row[mapping.montant]) || 0);
+        const montant = (Math.abs(parseFloat(row[mapping.montant]) || 0)) / 100;
         if (montant === 0) {
           results.skipped++;
           continue;
