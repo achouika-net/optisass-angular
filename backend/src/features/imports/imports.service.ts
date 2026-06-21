@@ -761,6 +761,7 @@ export class ImportsService {
           }
 
           const clientData: any = {
+            id: clientTmpId,
             codeClient: code || null,
             nom:
               typeof mappedRow.nom === 'string' && mappedRow.nom.trim()
