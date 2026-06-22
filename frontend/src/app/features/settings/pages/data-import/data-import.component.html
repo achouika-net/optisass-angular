@@ -1,9 +1,15 @@
 <div class="container mx-auto p-4">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Import de Données</h1>
-        <button type="button" mat-stroked-button color="primary" (click)="reset()" *ngIf="importResult">
-            <mat-icon>refresh</mat-icon> Nouvel Import
-        </button>
+        <div class="flex gap-2">
+            <button type="button" mat-stroked-button color="primary" (click)="reset()" *ngIf="importResult">
+                <mat-icon>refresh</mat-icon> Nouvel Import
+            </button>
+            <button type="button" mat-raised-button color="warn" (click)="clearDatabase()" [disabled]="isClearing || isUploading || isImporting">
+                <mat-icon>delete_forever</mat-icon>
+                {{ isClearing ? 'Réinitialisation...' : 'Vider la base de données' }}
+            </button>
+        </div>
     </div>
 
     <mat-card>

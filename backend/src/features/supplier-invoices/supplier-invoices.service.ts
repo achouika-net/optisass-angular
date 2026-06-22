@@ -252,7 +252,14 @@ export class SupplierInvoicesService {
           (sum, e) => sum + e.montant,
           0,
         );
-        acc.totalPaid += Math.min(inv.montantTTC, paidEcheances);
+        
+        let paidAmount = 0;
+        if (inv.montantTTC < 0) {
+          paidAmount = inv.montantTTC;
+        } else {
+          paidAmount = Math.min(inv.montantTTC, paidEcheances);
+        }
+        acc.totalPaid += paidAmount;
         return acc;
       },
       { totalTTC: 0, totalHT: 0, totalPaid: 0 },
@@ -264,8 +271,15 @@ export class SupplierInvoicesService {
         .filter((e: any) => ['PAYEE', 'ENCAISSE'].includes(e.statut))
         .reduce((sum: number, e: any) => sum + (e.montant || 0), 0);
       
-      const resteAPayer = Math.max(0, Math.round((inv.montantTTC - totalPaid) * 100) / 100);
-      const acompte = Math.round(Math.min(totalPaid, inv.montantTTC) * 100) / 100;
+      let resteAPayer = 0;
+      let acompte = 0;
+      if (inv.montantTTC < 0) {
+        resteAPayer = 0;
+        acompte = inv.montantTTC;
+      } else {
+        resteAPayer = Math.max(0, Math.round((inv.montantTTC - totalPaid) * 100) / 100);
+        acompte = Math.round(Math.min(totalPaid, inv.montantTTC) * 100) / 100;
+      }
 
       return { ...inv, resteAPayer, acompte };
     });

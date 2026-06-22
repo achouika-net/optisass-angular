@@ -127,7 +127,7 @@ export class ImportsService {
   async parseFile(buffer: Buffer) {
     try {
       console.log(`Parsing buffer of size: ${buffer.length}`);
-      const workbook = XLSX.read(buffer, { type: 'buffer', codepage: 65001 }); // Force UTF-8 codepage
+      const workbook = XLSX.read(buffer, { type: 'buffer', codepage: 65001, raw: true }); // Force UTF-8 codepage
       console.log('Workbook read. Sheet names:', workbook.SheetNames);
 
       if (workbook.SheetNames.length === 0) {
@@ -549,6 +549,32 @@ export class ImportsService {
     return null;
   }
 
+  private determineEcheanceStatus(dateEcheanceVal: Date | null, datePaiementVal: Date | null, rawMode: any): string {
+    const paymentMode = this.normalizePaymentType(rawMode) || 'ESPECES';
+    
+    // Prélèvement (VIREMENT), Espèces (ESPECES), Carte (CARTE), Avoir (AVOIR), Geste (GESTE_COMMERCIAL) are always instantly settled, never pending or remis en banque
+    if (paymentMode === 'VIREMENT' || paymentMode === 'ESPECES' || paymentMode === 'CARTE' || paymentMode === 'AVOIR' || paymentMode === 'GESTE_COMMERCIAL') {
+      return 'PAYEE';
+    }
+    
+    // For Cheque and LCN:
+    const d = dateEcheanceVal || datePaiementVal || new Date();
+    
+    // If the échéance date is in the future, it is pending
+    if (d > new Date()) {
+      return 'EN_ATTENTE';
+    }
+    
+    // If the date is on or before April 30, 2026, it is paid
+    const thresholdDate = new Date('2026-04-30T23:59:59.999Z');
+    if (d <= thresholdDate) {
+      return 'PAYEE';
+    }
+    
+    // Otherwise, if between 01/05/2026 and today, it is remis en banque
+    return 'REMIS_EN_BANQUE';
+  }
+
   private inferExpenseCategory(description: string): string {
     const desc = description.toLowerCase();
 
@@ -677,12 +703,8 @@ export class ImportsService {
           where: {
             OR: [
               { codeClient: { in: codesChunk } },
-              {
-                AND: [
-                  { nom: { in: namesChunk, mode: 'insensitive' } },
-                  { telephone: { in: phonesChunk } },
-                ],
-              },
+              { nom: { in: namesChunk, mode: 'insensitive' } },
+              { telephone: { in: phonesChunk } },
             ],
           },
           select: { id: true, codeClient: true, nom: true, telephone: true },
@@ -702,189 +724,17 @@ export class ImportsService {
           const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()}`;
           identityMap.set(key, c.id);
         }
-      });
-
-      // --- AUTO-PROVISIONING MISSING CLIENTS ---
-      const missingClients: any[] = [];
-      const processedCodes = new Set(codeMap.keys());
-      const processedIdentities = new Set(identityMap.keys());
-      const processedNames = new Set(); // Fallback for name-only
-
-      data.forEach((row, idx) => {
-        const mappedRow: any = {};
-        for (const k of Object.keys(mapping)) {
-          if (mapping[k]) mappedRow[k] = row[mapping[k]];
+        if (c.nom) {
+          const nameKey = String(c.nom).toLowerCase().trim();
+          if (!identityMap.has(nameKey)) identityMap.set(nameKey, c.id);
         }
-
-        const code = mappedRow.codeClient ? String(mappedRow.codeClient) : null;
-        const nom = mappedRow.nom
-          ? String(mappedRow.nom).toLowerCase().trim()
-          : '';
-        const tel = mappedRow.telephone
-          ? String(mappedRow.telephone).trim()
-          : '';
-
-        const identKey = nom && tel ? `${nom}_${tel}` : null;
-
-        let isMissing = false;
-        if (code && !processedCodes.has(code)) {
-          isMissing = true;
-          processedCodes.add(code);
-        } else if (!code && identKey && !processedIdentities.has(identKey)) {
-          isMissing = true;
-          processedIdentities.add(identKey);
-        } else if (!code && !identKey && nom && !processedNames.has(nom)) {
-          // New fallback: Create by name even if tel/code missing
-          isMissing = true;
-          processedNames.add(nom);
-        } else if (
-          !code &&
-          !identKey &&
-          !nom &&
-          tel &&
-          !processedNames.has(`tel_${tel} `)
-        ) {
-          // New fallback: Create by phone even if name/code missing
-          isMissing = true;
-          processedNames.add(`tel_${tel} `);
-        }
-
-        if (isMissing) {
-          const clientTmpId = crypto.randomUUID();
-          // Store in maps so subsequent rows in THIS SAME BATCH can find it
-          if (code) codeMap.set(code, clientTmpId);
-          if (identKey) identityMap.set(identKey, clientTmpId);
-          if (nom && !identKey) {
-            const fallbackKey = `name_${nom}`;
-            if (!identityMap.has(fallbackKey))
-              identityMap.set(fallbackKey, clientTmpId);
-          }
-
-          const clientData: any = {
-            id: clientTmpId,
-            codeClient: code || null,
-            nom:
-              typeof mappedRow.nom === 'string' && mappedRow.nom.trim()
-                ? mappedRow.nom.trim()
-                : tel
-                  ? `Client Tel ${tel} `
-                  : code
-                    ? `Client ${code} `
-                    : 'Client Inconnu',
-            prenom:
-              typeof mappedRow.prenom === 'string' && mappedRow.prenom.trim()
-                ? mappedRow.prenom.trim()
-                : typeof mappedRow.prenom === 'number'
-                  ? String(mappedRow.prenom)
-                  : null,
-            telephone: tel || null,
-            email:
-              typeof mappedRow.email === 'string' && mappedRow.email.trim()
-                ? mappedRow.email.trim()
-                : null,
-            adresse:
-              typeof mappedRow.adresse === 'string' && mappedRow.adresse.trim()
-                ? mappedRow.adresse.trim()
-                : null,
-            ville:
-              typeof mappedRow.ville === 'string' && mappedRow.ville.trim()
-                ? mappedRow.ville.trim()
-                : null,
-            codePostal:
-              typeof mappedRow.codePostal === 'string' &&
-              mappedRow.codePostal.trim()
-                ? mappedRow.codePostal.trim()
-                : typeof mappedRow.codePostal === 'number'
-                  ? String(mappedRow.codePostal)
-                  : null,
-            dateNaissance: parseDate(mappedRow.dateNaissance),
-            dateCreation: parseDate(mappedRow.dateCreation) || new Date(),
-            typeClient: 'PHYSIQUE',
-            statut: 'ACTIF',
-            centreId: centreId || null,
-          };
-
-          // Handle insurance (Aggregation & Nullification)
-          const assuranceIns = mappedRow.couvertureSociale
-            ? String(mappedRow.couvertureSociale).trim()
-            : null;
-          const numeroIns = mappedRow.numCouvertureSociale
-            ? String(mappedRow.numCouvertureSociale).trim()
-            : null;
-
-          if (assuranceIns || numeroIns) {
-            clientData.couvertureSociale = {
-              assurance: assuranceIns || null,
-              numero: numeroIns || null,
-            };
-          } else {
-            clientData.couvertureSociale = null;
-          }
-
-          missingClients.push(clientData);
+        if (c.telephone) {
+          const telKey = `tel_${String(c.telephone).trim()}`;
+          if (!identityMap.has(telKey)) identityMap.set(telKey, c.id);
         }
       });
+      // ----------------------------------------
 
-      if (missingClients.length > 0) {
-        log(
-          `? Aggressive Auto - creating ${missingClients.length} missing clients...`,
-        );
-        await this.prisma.client.createMany({
-          data: missingClients,
-          skipDuplicates: true,
-        });
-
-        // Re-fetch ALL possible matches to update IDs (with chunking)
-        const newClients: any[] = [];
-        const procCodesArray = Array.from(processedCodes);
-        const namesArrayRefetch = Array.from(names);
-        const phonesArrayRefetch = Array.from(phones);
-
-        for (
-          let i = 0;
-          i < Math.max(procCodesArray.length, namesArrayRefetch.length);
-          i += QUERY_CHUNK_SIZE
-        ) {
-          const codesChunk = procCodesArray.slice(i, i + QUERY_CHUNK_SIZE);
-          const namesChunk = namesArrayRefetch.slice(i, i + QUERY_CHUNK_SIZE);
-          const phonesChunk = phonesArrayRefetch.slice(i, i + QUERY_CHUNK_SIZE);
-
-          const clientsChunk = await this.prisma.client.findMany({
-            where: {
-              OR: [
-                { codeClient: { in: codesChunk } },
-                {
-                  AND: [
-                    { nom: { in: namesChunk } },
-                    { telephone: { in: phonesChunk } },
-                  ],
-                },
-                { nom: { in: namesChunk } }, // Aggressive fetch
-                { telephone: { in: phonesChunk } },
-              ],
-            },
-            select: { id: true, codeClient: true, nom: true, telephone: true },
-          });
-          newClients.push(...clientsChunk);
-        }
-
-        newClients.forEach((c) => {
-          if (c.codeClient) codeMap.set(String(c.codeClient).trim(), c.id);
-          if (c.nom && c.telephone) {
-            const key = `${String(c.nom).toLowerCase().trim()}_${String(c.telephone).trim()}`;
-            identityMap.set(key, c.id);
-          }
-          // Secondary backups: match by name only or tel only if no full identity
-          if (c.nom) {
-            const nameKey = String(c.nom).toLowerCase().trim();
-            if (!identityMap.has(nameKey)) identityMap.set(nameKey, c.id);
-          }
-          if (c.telephone) {
-            const telKey = `tel_${String(c.telephone).trim()}`;
-            if (!identityMap.has(telKey)) identityMap.set(telKey, c.id);
-          }
-        });
-      }
       // ----------------------------------------
 
       // (arrays declared above, before try block)
@@ -946,19 +796,20 @@ export class ImportsService {
 
         let cId = null;
         if (sharedMapped.codeClient) {
-          cId = codeMap.get(String(sharedMapped.codeClient));
-        } else if (sharedMapped.nom || sharedMapped.telephone) {
-          const nomStr = sharedMapped.nom
-            ? String(sharedMapped.nom).toLowerCase().trim()
-            : '';
-          const telStr = sharedMapped.telephone
-            ? String(sharedMapped.telephone).trim()
-            : '';
-          const identKey =
-            nomStr && telStr
-              ? `${nomStr}_${telStr}`
-              : nomStr || `tel_${telStr}`;
-          cId = identityMap.get(identKey);
+          cId = codeMap.get(String(sharedMapped.codeClient).trim());
+        }
+        if (!cId && sharedMapped.nom && sharedMapped.telephone) {
+          const nomStr = String(sharedMapped.nom).toLowerCase().trim();
+          const telStr = String(sharedMapped.telephone).trim();
+          cId = identityMap.get(`${nomStr}_${telStr}`);
+        }
+        if (!cId && sharedMapped.nom) {
+          const nomStr = String(sharedMapped.nom).toLowerCase().trim();
+          cId = identityMap.get(nomStr);
+        }
+        if (!cId && sharedMapped.telephone) {
+          const telKey = `tel_${String(sharedMapped.telephone).trim()}`;
+          cId = identityMap.get(telKey);
         }
 
         const pm: any = {};
@@ -1025,19 +876,20 @@ export class ImportsService {
           // Resolve Client ID
           let clientId = null;
           if (sharedMapped.codeClient) {
-            clientId = codeMap.get(String(sharedMapped.codeClient));
-          } else if (sharedMapped.nom || sharedMapped.telephone) {
-            const nomStr = sharedMapped.nom
-              ? String(sharedMapped.nom).toLowerCase().trim()
-              : '';
-            const telStr = sharedMapped.telephone
-              ? String(sharedMapped.telephone).trim()
-              : '';
-            const identKey =
-              nomStr && telStr
-                ? `${nomStr}_${telStr}`
-                : nomStr || `tel_${telStr}`;
-            clientId = identityMap.get(identKey);
+            clientId = codeMap.get(String(sharedMapped.codeClient).trim());
+          }
+          if (!clientId && sharedMapped.nom && sharedMapped.telephone) {
+            const nomStr = String(sharedMapped.nom).toLowerCase().trim();
+            const telStr = String(sharedMapped.telephone).trim();
+            clientId = identityMap.get(`${nomStr}_${telStr}`);
+          }
+          if (!clientId && sharedMapped.nom) {
+            const nomStr = String(sharedMapped.nom).toLowerCase().trim();
+            clientId = identityMap.get(nomStr);
+          }
+          if (!clientId && sharedMapped.telephone) {
+            const telKey = `tel_${String(sharedMapped.telephone).trim()}`;
+            clientId = identityMap.get(telKey);
           }
 
           if (!clientId) {
@@ -2495,18 +2347,18 @@ export class ImportsService {
           (numeroFacture === lastNum ? lastDateEmission : null) ||
           new Date();
         const dateEcheance = this.parseDate(row[mapping.dateEcheance]);
-        let montantHT = Math.abs(this.parseAmount(row[mapping.montantHT]));
-        let montantTVA = Math.abs(this.parseAmount(row[mapping.montantTVA]));
-        let montantTTC = Math.abs(this.parseAmount(row[mapping.montantTTC]));
+        let montantHT = this.parseAmount(row[mapping.montantHT]);
+        let montantTVA = this.parseAmount(row[mapping.montantTVA]);
+        let montantTTC = this.parseAmount(row[mapping.montantTTC]);
 
         // Auto-calculate missing financial values (standard 20% TVA rate)
-        if (montantTTC > 0 && !montantHT) {
+        if (montantTTC !== 0 && !montantHT) {
           montantHT = montantTTC / 1.2;
           montantTVA = montantTTC - montantHT;
-        } else if (montantHT > 0 && !montantTTC) {
+        } else if (montantHT !== 0 && !montantTTC) {
           montantTTC = montantHT * 1.2;
           montantTVA = montantTTC - montantHT;
-        } else if (montantHT > 0 && montantTTC > 0 && !montantTVA) {
+        } else if (montantHT !== 0 && montantTTC !== 0 && !montantTVA) {
           montantTVA = montantTTC - montantHT;
         }
 
@@ -2556,7 +2408,7 @@ export class ImportsService {
                 montant: montantTTC,
                 dateEcheance: dateEmission,
                 type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                statut: (dateEmission && dateEmission > new Date()) ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
+                statut: this.determineEcheanceStatus(dateEmission, dateEmission, row[mapping.modePaiement]),
                 dateEncaissement: (dateEmission && dateEmission <= new Date()) ? dateEmission : null,
               },
             });
@@ -2787,7 +2639,7 @@ export class ImportsService {
                   montant: montantTTC || 0,
                   dateEcheance: dateEcheance || dateEmission,
                   type: paymentMode,
-                  statut: ((dateEcheance || dateEmission) > new Date()) ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(paymentMode) ? 'REMIS_EN_BANQUE' : 'PAYEE'),
+                  statut: this.determineEcheanceStatus(dateEcheance || dateEmission, dateEmission, paymentMode),
                   dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
                 },
               });
@@ -2866,9 +2718,9 @@ export class ImportsService {
           this.parseDate(row[mapping.datePaiement]) || new Date();
         const dateEcheanceVal =
           this.parseDate(row[mapping.dateEcheance]) || dateReglement;
-        const montant = Math.abs(this.parseAmount(
+        const montant = this.parseAmount(
           row[mapping.montant] || row[mapping.montantTTC],
-        ));
+        );
         const banqueVal = this.getRowValue(row, 'banque', mapping, ['bank', 'etablissement', 'tablissement', 'banque paiement']);
         const banque = banqueVal ? String(banqueVal).trim() : null;
 
@@ -3031,72 +2883,37 @@ export class ImportsService {
             : null;
 
         if (!facture && !bl && !depense) {
-          if (numeroFacture) {
-            // Create a fallback Invoice to allow multiple installments for the same nPiece (Facture)
-            facture = await this.prisma.factureFournisseur.create({
-              data: {
-                numeroFacture,
-                dateEmission: dateReglement,
-                montantHT: 0,
-                montantTVA: 0,
-                montantTTC: montant,
-                statut: 'PAYEE',
-                fournisseurId: supplier.id,
-                type: this.normalizePaymentType(row[mapping.modePaiement]) === 'AVOIR' ? 'AVOIR' : 'ACHAT_STOCK',
-                centreId:
-                  supplier.centreId || (await this.getDefaultCentreId()),
-                referenceInterne: `AUTO-CREATED (nPiece: ${numeroFacture})`,
-              },
-            });
-            // Create the corresponding payment record
-            await this.prisma.echeancePaiement.create({
-              data: {
-                factureFournisseurId: facture ? facture.id : undefined,
-                bonLivraisonId: bl ? bl.id : undefined,
-                montant,
-                dateEncaissement: dateReglement,
-                dateEcheance: dateReglement,
-                reference: safeRef,
-                statut: dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
-                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
-                banque: banque || undefined,
-                remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (nPiece: ${numeroFacture})`,
-              },
-            });
-            results.success++;
-            continue;
-          } else {
-            // No nPiece provided, use standalone Depense fallback
-            const newEcheance = await this.prisma.echeancePaiement.create({
-              data: {
-                montant,
-                dateEncaissement: dateReglement,
-                dateEcheance: dateReglement,
-                reference: safeRef,
-                statut: dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
-                type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                banque: banque || undefined,
-                remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (Row ${index + 1})`,
-              },
-            });
+          // Do not auto-create FactureFournisseur anymore.
+          // Create a standalone Depense fallback instead.
+          const newEcheance = await this.prisma.echeancePaiement.create({
+            data: {
+              montant,
+              dateEncaissement: dateReglement,
+              dateEcheance: dateReglement,
+              reference: safeRef,
+              statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]),
+              type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
+              banque: banque || undefined,
+              remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (nPiece: ${numeroFacture || 'Sans Ref'})`,
+            },
+          });
 
-            depense = await this.prisma.depense.create({
-              data: {
-                date: dateReglement,
-                montant,
-                categorie: 'AUTRE',
-                description: `Paiement sans facture: ${safeRef || 'Sans Ref'}`,
-                modePaiement: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                statut: dateReglement > new Date() ? 'A_PAYER' : 'PAYEE',
-                centreId:
-                  supplier.centreId || (await this.getDefaultCentreId()),
-                fournisseurId: supplier.id,
-                echeanceId: newEcheance.id,
-              },
-            });
-            results.success++;
-            continue;
-          }
+          depense = await this.prisma.depense.create({
+            data: {
+              date: dateReglement,
+              montant,
+              categorie: 'AUTRE',
+              description: `Paiement sans facture (nPiece: ${numeroFacture || 'Sans Ref'})`,
+              modePaiement: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
+              statut: dateReglement > new Date() ? 'A_PAYER' : 'PAYEE',
+              centreId:
+                supplier.centreId || (await this.getDefaultCentreId()),
+              fournisseurId: supplier.id,
+              echeanceId: newEcheance.id,
+            },
+          });
+          results.success++;
+          continue;
         }
 
         // Safe Idempotency check: Only skip if we find a payment for THIS invoice with BOTH same amount/date AND same reference (if provided)
@@ -3124,7 +2941,8 @@ export class ImportsService {
                 data: {
                   banque: banque || undefined,
                   type: nextType,
-                  dateEcheance: dateEcheanceVal
+                  dateEcheance: dateEcheanceVal,
+                  statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement])
                 }
               });
               results.updated++;
@@ -3148,7 +2966,8 @@ export class ImportsService {
                 data: {
                   banque: banque || undefined,
                   type: nextType,
-                  dateEcheance: dateEcheanceVal
+                  dateEcheance: dateEcheanceVal,
+                  statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement])
                 }
               });
               results.updated++;
@@ -3184,7 +3003,7 @@ export class ImportsService {
               dateEncaissement: dateReglement,
               dateEcheance: dateEcheanceVal || dateReglement,
               reference: safeRef,
-              statut: dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
+              statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]),
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
               banque: banque || undefined,
               remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`,
@@ -3199,7 +3018,7 @@ export class ImportsService {
               dateEncaissement: dateReglement,
               dateEcheance: dateEcheanceVal,
               reference: safeRef,
-              statut: dateReglement && dateReglement > new Date() ? 'EN_ATTENTE' : (['CHEQUE', 'LCN'].includes(this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT') ? 'REMIS_EN_BANQUE' : 'PAYEE'),
+              statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]),
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
               banque: banque || undefined,
             },
@@ -3267,7 +3086,7 @@ export class ImportsService {
       where: {
         OR: [
           { codeClient: { in: Array.from(codes) } },
-          { nom: { in: Array.from(names) } },
+          { nom: { in: Array.from(names), mode: 'insensitive' } },
         ],
       },
       select: { id: true, codeClient: true, nom: true },
@@ -3459,25 +3278,7 @@ export class ImportsService {
         if (!client && nomClient)
           client = clientByName.get(nomClient.toLowerCase().trim()) || null;
 
-        // Auto-create client if not found but we have name or code
-        if (!client && (nomClient || codeClient)) {
-          try {
-            client = await this.prisma.client.create({
-              data: {
-                id: crypto.randomUUID(),
-                nom: nomClient || `Client ${codeClient}`,
-                codeClient: codeClient || undefined,
-                typeClient: 'particulier',
-                statut: 'ACTIF',
-                centreId: centreId || undefined,
-              },
-            });
-            if (client.codeClient) clientByCode.set(client.codeClient, client);
-            if (client.nom) clientByName.set(client.nom.toLowerCase().trim(), client);
-          } catch (createErr) {
-            console.error(`[ImportFactures] Failed to auto-create client: ${createErr.message}`);
-          }
-        }
+        // Do not auto-create client per strict matching guidelines
 
         let clientId = client ? client.id : null;
 
@@ -4218,23 +4019,9 @@ export class ImportsService {
       'Starting database wipe (TRUNCATE CASCADE) for clean re-import...',
     );
     try {
-      // Using TRUNCATE CASCADE to definitively wipe tables regardless of size or FK constraints
-      await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Paiement" CASCADE;`);
+      // Using a single TRUNCATE CASCADE to lock all tables at once and prevent deadlock errors
       await this.prisma.$executeRawUnsafe(
-        `TRUNCATE TABLE "EcheancePaiement" CASCADE;`,
-      );
-      await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Depense" CASCADE;`);
-      await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Facture" CASCADE;`);
-      await this.prisma.$executeRawUnsafe(
-        `TRUNCATE TABLE "FactureFournisseur" CASCADE;`,
-      );
-      await this.prisma.$executeRawUnsafe(
-        `TRUNCATE TABLE "MouvementStock" CASCADE;`,
-      );
-      await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Fiche" CASCADE;`);
-      await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "Client" CASCADE;`);
-      await this.prisma.$executeRawUnsafe(
-        `TRUNCATE TABLE "Fournisseur" CASCADE;`,
+        `TRUNCATE TABLE "Paiement", "EcheancePaiement", "Depense", "Facture", "FactureFournisseur", "MouvementStock", "Fiche", "Client", "Fournisseur" CASCADE;`
       );
 
       this.logToFile('Database wipe successful (TRUNCATE CASCADE)');

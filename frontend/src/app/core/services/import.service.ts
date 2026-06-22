@@ -37,4 +37,8 @@ export class ImportService {
             isBL
         });
     }
+
+    clearData(): Observable<any> {
+        return this.http.post(`${this.apiUrl}/clear-data`, {});
+    }
 }

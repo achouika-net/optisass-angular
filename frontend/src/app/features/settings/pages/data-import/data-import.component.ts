@@ -56,6 +56,7 @@ export class DataImportComponent implements OnInit {
 
     isUploading = false;
     isImporting = false;
+    isClearing = false;
     importResult: any = null;
     importProgress = 0;
     importTotalRows = 0;
@@ -994,6 +995,26 @@ export class DataImportComponent implements OnInit {
         } finally {
             this.isImporting = false;
             this.cdr.detectChanges();
+        }
+    }
+
+    clearDatabase() {
+        if (confirm('Êtes-vous sûr de vouloir vider/réinitialiser TOUTE la base de données (clients, fiches, factures, paiements, fournisseurs) ? Cette action est irréversible.')) {
+            this.isClearing = true;
+            this.cdr.detectChanges();
+            this.importService.clearData().subscribe({
+                next: (res) => {
+                    this.isClearing = false;
+                    this.reset();
+                    this.cdr.detectChanges();
+                    this.snackBar.open('Base de données réinitialisée avec succès !', 'OK', { duration: 5000 });
+                },
+                error: (err) => {
+                    this.isClearing = false;
+                    this.cdr.detectChanges();
+                    this.snackBar.open('Erreur lors de la réinitialisation : ' + (err.error?.message || err.message), 'Fermer');
+                }
+            });
         }
     }
 
