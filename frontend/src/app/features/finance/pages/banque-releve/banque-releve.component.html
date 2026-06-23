@@ -469,6 +469,7 @@
                   <td mat-cell *matCellDef="let d" class="desc-cell">
                     <span style="font-weight:600;">{{ d.categorie || d.description || '-' }}</span>
                     <br><small style="color:#6b7280;">{{ d.modePaiement || d.mode }}</small>
+                    @if (d.reference) { <br><small style="color:#6b7280;">Ref: {{ d.reference }}</small> }
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="montant">
