@@ -285,6 +285,17 @@ export class TreasuryService {
           'ESPECE'
         );
       else if (m === 'VIREMENT') allModes.push('VIREMENT', 'Virement');
+      else if (m === 'PRELEVEMENT')
+        allModes.push(
+          'PRELEVEMENT',
+          'PRÉLÈVEMENT',
+          'PR\u00C9L\u00C8VEMENT',
+          'PR\u00C9L\u00C9VEMENT',
+          'PR\u00C8L\u00C8VEMENT',
+          'PRLVEMENT',
+          'PRELEVEMENTS',
+          'PRÉLÈVEMENTS'
+        );
       else if (m === 'CARTE') allModes.push('CARTE', 'CARTE BANCAIRE', 'CB', 'TPE');
       else if (['PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC'].includes(m))
         allModes.push('PRISE_EN_CHARGE', 'PRISE EN CHARGE', 'PEC');
