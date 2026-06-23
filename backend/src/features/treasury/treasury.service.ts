@@ -844,7 +844,10 @@ export class TreasuryService {
     const next48h = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
     // Tous les types de cheques avec leurs variantes d'encodage
-    const chequeTypes = ["CHEQUE","LCN","ChÃ¨que","ChÃ©que","ChâÂ¿que","cheque","Cheque"];
+    const chequeTypes = [
+      'CHEQUE', 'CHÈQUE', 'CHÉQUE', 'CHÊQUE', 'CHQUE', 'CH\u00C8QUE', 'CH\u00CAQUE', 'CH\u00C9QUE', 'CH^QUE',
+      'LCN', 'EFFET', 'EFFET LCN', 'TRAITE', 'cheque', 'Cheque', 'Chèque', 'Chéque', 'Ch\x94\x9c¿que'
+    ];
 
     const baseWhere: any = {
       // Pas de borne inferieure : inclure TOUS les elements en retard + 48h a venir
@@ -868,11 +871,11 @@ export class TreasuryService {
           mode: { in: chequeTypes },
           statut: { in: ['EN_ATTENTE', 'REMIS_EN_BANQUE'] },
           // Tous les paiements non encaisses (passes + futurs jusqu'a 24h)
-          dateVersement: { lte: next24h },
+          dateEncaissement: { lte: next24h },
           facture: centreId ? { centreId } : {},
         },
         include: { facture: { include: { client: true } } },
-        orderBy: { dateVersement: 'asc' },
+        orderBy: { dateEncaissement: 'asc' },
         take: 50,
       }),
       this.prisma.echeancePaiement.findMany({
@@ -892,7 +895,7 @@ export class TreasuryService {
         client:
           `${p.facture.client?.nom || ''} ${p.facture.client?.prenom || ''}`.trim(),
         montant: p.montant,
-        date: p.dateVersement,
+        date: p.dateEncaissement,
         reference: p.reference || 'N/A',
         numeroFacture: p.facture.numero,
         statut: p.statut,
