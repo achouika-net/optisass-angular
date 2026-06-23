@@ -250,7 +250,7 @@
                     </ng-container>
                     
                     <ng-container matColumnDef="datePiece">
-                        <th mat-header-cell *matHeaderCellDef>Date Pièce</th>
+                        <th mat-header-cell *matHeaderCellDef>{{ activeTab === 'INCOMING' ? "Date d'encaissement" : "Date de décaissement" }}</th>
                         <td mat-cell *matCellDef="let p">
                             <span class="text-xs">{{ (p.datePiece || p.dateEcheance) | date:'dd/MM/yyyy' }}</span>
                         </td>

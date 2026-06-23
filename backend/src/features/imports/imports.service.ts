@@ -2403,13 +2403,15 @@ export class ImportsService {
         if (!numeroFacture) {
           if (centreId && montantTTC > 0) {
             // Create new standalone expense (No more checking existingDepense for 1:1 mapping)
+            const status = this.determineEcheanceStatus(dateEmission, dateEmission, row[mapping.modePaiement]);
+            const dateEnc = (status === 'PAYEE') ? dateEmission : null;
             const echeance = await this.prisma.echeancePaiement.create({
               data: {
                 montant: montantTTC,
                 dateEcheance: dateEmission,
                 type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
-                statut: this.determineEcheanceStatus(dateEmission, dateEmission, row[mapping.modePaiement]),
-                dateEncaissement: (dateEmission && dateEmission <= new Date()) ? dateEmission : null,
+                statut: status,
+                dateEncaissement: dateEnc,
               },
             });
 
@@ -2633,14 +2635,15 @@ export class ImportsService {
             const rawPaymentMode = row[mapping.modePaiement];
             const paymentMode = rawPaymentMode ? this.normalizePaymentType(rawPaymentMode) : null;
             if (paymentMode && paymentMode !== 'NON_REGLE') {
+              const status = this.determineEcheanceStatus(dateEcheance || dateEmission, dateEmission, paymentMode);
               await this.prisma.echeancePaiement.create({
                 data: {
                   bonLivraisonId: record.id,
                   montant: montantTTC || 0,
                   dateEcheance: dateEcheance || dateEmission,
                   type: paymentMode,
-                  statut: this.determineEcheanceStatus(dateEcheance || dateEmission, dateEmission, paymentMode),
-                  dateEncaissement: ((dateEcheance || dateEmission) <= new Date()) ? (dateEcheance || dateEmission) : null,
+                  statut: status,
+                  dateEncaissement: (status === 'PAYEE') ? (dateEcheance || dateEmission) : null,
                 },
               });
             }
@@ -2885,13 +2888,14 @@ export class ImportsService {
         if (!facture && !bl && !depense) {
           // Do not auto-create FactureFournisseur anymore.
           // Create a standalone Depense fallback instead.
+          const status = this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]);
           const newEcheance = await this.prisma.echeancePaiement.create({
             data: {
               montant,
-              dateEncaissement: dateReglement,
+              dateEncaissement: (status === 'PAYEE') ? dateReglement : null,
               dateEcheance: dateReglement,
               reference: safeRef,
-              statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]),
+              statut: status,
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'ESPECES',
               banque: banque || undefined,
               remarque: `AUTO-CREATED FROM UNMATCHED PAYMENT (nPiece: ${numeroFacture || 'Sans Ref'})`,
@@ -2936,13 +2940,15 @@ export class ImportsService {
             // Update bank and type if they are missing/different to recover bank details on re-import
             const nextType = this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT';
             if ((!existing.banque && banque) || existing.type !== nextType) {
+              const status = this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]);
               await this.prisma.echeancePaiement.update({
                 where: { id: existing.id },
                 data: {
                   banque: banque || undefined,
                   type: nextType,
                   dateEcheance: dateEcheanceVal,
-                  statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement])
+                  statut: status,
+                  dateEncaissement: (status === 'PAYEE') ? dateReglement : null
                 }
               });
               results.updated++;
@@ -2961,13 +2967,15 @@ export class ImportsService {
           if (existing) {
             const nextType = this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT';
             if ((!existing.banque && banque) || existing.type !== nextType) {
+              const status = this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]);
               await this.prisma.echeancePaiement.update({
                 where: { id: existing.id },
                 data: {
                   banque: banque || undefined,
                   type: nextType,
                   dateEcheance: dateEcheanceVal,
-                  statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement])
+                  statut: status,
+                  dateEncaissement: (status === 'PAYEE') ? dateReglement : null
                 }
               });
               results.updated++;
@@ -2996,14 +3004,15 @@ export class ImportsService {
             continue;
           }
 
+          const status = this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]);
           await this.prisma.echeancePaiement.create({
             data: {
               factureFournisseurId: facture.id,
               montant,
-              dateEncaissement: dateReglement,
+              dateEncaissement: (status === 'PAYEE') ? dateReglement : null,
               dateEcheance: dateEcheanceVal || dateReglement,
               reference: safeRef,
-              statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]),
+              statut: status,
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
               banque: banque || undefined,
               remarque: `ADDITIONAL PAYMENT (nPiece: ${numeroFacture})`,
@@ -3011,14 +3020,15 @@ export class ImportsService {
           });
         } else if (depense) {
           // Reconcile with the expense's placeholder EcheancePaiement
+          const status = this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]);
           await this.prisma.echeancePaiement.update({
             where: { id: depense.echeanceId },
             data: {
               montant,
-              dateEncaissement: dateReglement,
+              dateEncaissement: (status === 'PAYEE') ? dateReglement : null,
               dateEcheance: dateEcheanceVal,
               reference: safeRef,
-              statut: this.determineEcheanceStatus(dateEcheanceVal, dateReglement, row[mapping.modePaiement]),
+              statut: status,
               type: this.normalizePaymentType(row[mapping.modePaiement]) || 'PAIEMENT',
               banque: banque || undefined,
             },
