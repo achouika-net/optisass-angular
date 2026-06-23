@@ -153,6 +153,19 @@ export class FacturesService implements OnModuleInit {
       let resolvedVendeurId = (cleanData.vendeurId || props.vendeurId) as
         | string
         | undefined;
+
+      if (resolvedVendeurId) {
+        const employeeExists = await tx.employee.findUnique({
+          where: { id: resolvedVendeurId },
+        });
+        if (!employeeExists) {
+          console.warn(
+            `[FactureService] Vendeur employee ID ${resolvedVendeurId} not found in database. Resetting to null/fallback.`
+          );
+          resolvedVendeurId = undefined;
+        }
+      }
+
       if (!resolvedVendeurId && userId) {
         const user = await tx.user.findUnique({
           where: { id: userId },
@@ -160,6 +173,11 @@ export class FacturesService implements OnModuleInit {
         });
         if (user?.employee) resolvedVendeurId = user.employee.id;
       }
+
+      const cleanProps = {
+        ...props,
+        vendeurId: resolvedVendeurId || null,
+      };
 
       // 3.2. Generate Numero ATOMICALLY inside the transaction
       const type = cleanData.type || 'DEVIS';
@@ -182,7 +200,7 @@ export class FacturesService implements OnModuleInit {
         totalTTC: cleanData.totalTTC || 0,
         resteAPayer: cleanData.totalTTC || 0,
         lignes: (cleanData.lignes as Prisma.InputJsonValue) || [],
-        proprietes: (cleanData.proprietes as Prisma.InputJsonValue) || {},
+        proprietes: cleanProps as Prisma.InputJsonValue,
         notes: cleanData.notes,
       };
 
@@ -1235,6 +1253,39 @@ export class FacturesService implements OnModuleInit {
           ),
           pointsSpent: Boolean(p.pointsSpent || incomingP.pointsSpent),
           pointsAwarded: Boolean(p.pointsAwarded || incomingP.pointsAwarded),
+        } as Prisma.InputJsonValue;
+      }
+
+      // Resolve and validate vendeurId for update
+      const currentProps = (currentFacture.proprietes as Record<string, unknown>) || {};
+      const incomingProps = (cleanData.proprietes as Record<string, unknown>) || {};
+      let updatedVendeurId = (cleanData.vendeurId !== undefined ? cleanData.vendeurId : incomingProps.vendeurId !== undefined ? incomingProps.vendeurId : currentFacture.vendeurId) as string | null | undefined;
+
+      if (updatedVendeurId) {
+        const employeeExists = await txClient.employee.findUnique({
+          where: { id: updatedVendeurId },
+        });
+        if (!employeeExists) {
+          console.warn(`[FactureService] Updated vendeur employee ID ${updatedVendeurId} not found in database. Resetting to null.`);
+          updatedVendeurId = null;
+        }
+      }
+
+      if (cleanData.vendeurId !== undefined || incomingProps.vendeurId !== undefined) {
+        cleanData.vendeurId = updatedVendeurId;
+        
+        // Ensure both fields stay in sync
+        const mergedProps = {
+          ...currentProps,
+          ...incomingProps,
+          vendeurId: updatedVendeurId
+        };
+        
+        cleanData.proprietes = {
+          ...mergedProps,
+          stockDecremented: Boolean(currentProps.stockDecremented || incomingProps.stockDecremented),
+          pointsSpent: Boolean(currentProps.pointsSpent || incomingProps.pointsSpent),
+          pointsAwarded: Boolean(currentProps.pointsAwarded || incomingProps.pointsAwarded),
         } as Prisma.InputJsonValue;
       }
 
