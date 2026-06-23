@@ -231,7 +231,7 @@
                         <td mat-cell *matCellDef="let p">
                             <div class="flex items-center gap-1">
                                 <mat-icon class="!text-xs text-gray-400">account_balance</mat-icon>
-                                <span class="text-xs font-bold text-slate-600">{{ p.banque || '-' }}</span>
+                                <span class="text-xs font-bold text-slate-600">{{ getBanqueOrCaisse(p) }}</span>
                             </div>
                         </td>
                     </ng-container>

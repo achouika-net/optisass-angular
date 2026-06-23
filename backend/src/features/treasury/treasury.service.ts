@@ -189,7 +189,11 @@ export class TreasuryService {
           CASE WHEN ep.type = 'AVOIR' AND (ff.type = 'AVOIR' OR ff."numeroFacture" ILIKE 'AV%' OR ff."numeroFacture" ILIKE 'CN%') THEN -ep.montant ELSE ep.montant END as montant,
           ep.statut, 'FACTURE' as source, 
           ep.type as "methodePaiement", ep.reference as "numeroPiece", 
-          COALESCE(ep.banque, 'BANQUE') as banque, ep."dateEcheance", ep."dateEncaissement", 
+          CASE 
+            WHEN ep.banque IS NOT NULL AND ep.banque <> '' THEN ep.banque
+            WHEN ep.type IN ('ESPECES', 'AVOIR', 'CASH', 'LIQUIDE', 'ESP\u00C9CES', 'ESP\u00C9CE', 'ESPECE', 'Esp\u00E9ces', 'Liquide') THEN 'CAISSE'
+            ELSE 'BANQUE'
+          END as banque, ep."dateEcheance", ep."dateEncaissement", 
           CASE WHEN ff.id IS NOT NULL AND ff."montantTTC" > 0 THEN 
             ((CASE WHEN ep.type = 'AVOIR' AND (ff.type = 'AVOIR' OR ff."numeroFacture" ILIKE 'AV%' OR ff."numeroFacture" ILIKE 'CN%') THEN -ep.montant ELSE ep.montant END) * (ff."montantHT" / ff."montantTTC")) 
           ELSE 

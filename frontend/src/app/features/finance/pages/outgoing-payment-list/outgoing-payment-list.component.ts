@@ -758,5 +758,13 @@ export class OutgoingPaymentListComponent implements OnInit {
             }
         });
     }
+
+    getBanqueOrCaisse(p: any): string {
+        const mode = String(p.methodePaiement || p.method || p.mode || '').toUpperCase();
+        if (mode.includes('ESPECE') || mode.includes('LIQUIDE') || mode.includes('CASH') || mode.includes('AVOIR')) {
+            return 'CAISSE';
+        }
+        return p.banque || '-';
+    }
 }
 
