@@ -226,7 +226,7 @@ export class TreasuryService {
         whereClause += "AND p.statut IN ('ANNULE', 'REJETE', 'IMPAYE') ";
       } else {
         sqlParams.push(filters.statut);
-        whereClause += `AND p.statut = ${sqlParams.length} `;
+        whereClause += `AND p.statut = $${sqlParams.length} `;
       }
     }
 
