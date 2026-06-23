@@ -240,12 +240,12 @@ export class TreasuryService {
       whereClause += `AND p.mode IN (${inClause}) `;
     }
 
-    let dateField = 'p.date';
-      if (filters.dateType === 'EMISSION') {
-        dateField = 'f."dateEmission"';
-      } else if (filters.dateType === 'ECHEANCE') {
-        dateField = 'COALESCE(p."dateEncaissement", p.date)';
-      }
+    let dateField = 'COALESCE(p."dateEncaissement", p.date)';
+    if (filters.dateType === 'EMISSION') {
+      dateField = 'f."dateEmission"';
+    } else if (filters.dateType === 'PAYMENT_DATE') {
+      dateField = 'p.date';
+    }
     if (filters.startDate && filters.endDate) {
       sqlParams.push(new Date(filters.startDate), new Date(filters.endDate));
       whereClause += `AND ${dateField} >= $${sqlParams.length - 1} AND ${dateField} <= $${sqlParams.length} `;
@@ -253,7 +253,7 @@ export class TreasuryService {
 
     const query = `
       SELECT 
-        p.id, p.date, p.montant, p.statut, p.mode, f."dateEmission" as "factureDate", p."dateEncaissement",
+        p.id, p.date, p.montant, p.statut, p.mode, f."dateEmission" as "factureDate", p."dateEncaissement", p."dateVersement",
         COALESCE(f.numero, 'N/A') as libelle,
         COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, '') as client,
         p.reference as "numeroPiece", p.banque
@@ -629,16 +629,21 @@ export class TreasuryService {
       deposited: 0,
     };
     return {
-      data: data.map((r) => ({
-        ...r,
-        source: 'FACTURE_CLIENT',
-        fournisseur: r.client,
-        montant: Number(r.montant || 0),
-        methodePaiement: r.mode,
-        modePaiement: r.mode,
-        reference: r.numeroPiece || r.reference || null,
+      data: data.map((r) => {
+        const isPending = ['EN_ATTENTE', 'PORTEFEUILLE', 'EN_COURS', 'BROUILLON'].includes(r.statut);
+        return {
+          ...r,
+          source: 'FACTURE_CLIENT',
+          fournisseur: r.client,
+          montant: Number(r.montant || 0),
+          methodePaiement: r.mode,
+          modePaiement: r.mode,
+          reference: r.numeroPiece || r.reference || null,
           datePiece: r.dateEncaissement || r.factureDate || r.date,
-        })),
+          dateVersement: isPending ? r.dateEncaissement : (r.dateVersement || null),
+          dateEncaissement: isPending ? null : r.dateEncaissement
+        };
+      }),
       total: s.total,
       subtotals: {
         totalTTC: Number(s.totalTTC || 0),

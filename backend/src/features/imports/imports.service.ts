@@ -3672,7 +3672,7 @@ export class ImportsService {
           notes,
           banque,
           dateEncaissement: dateEcheanceVal,
-          statut: 'ENCAISSE',
+          statut: ['CHEQUE', 'CHÈQUE', 'LCN'].includes(modeSource) ? 'EN_ATTENTE' : 'ENCAISSE',
         });
 
         // Accumulate payment totals per invoice for balance update
