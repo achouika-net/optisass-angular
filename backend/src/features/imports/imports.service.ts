@@ -3195,6 +3195,7 @@ export class ImportsService {
         id: true,
         numero: true,
         clientId: true,
+        content: true,
         facture: {
           select: {
             id: true,
@@ -3456,7 +3457,7 @@ export class ImportsService {
             totalTVA,
             totalTTC,
             resteAPayer: totalTTC,
-            lignes: [],
+            lignes: this.generateInvoiceLinesForImport(linkedFiche?.content, totalTTC),
             proprietes: {},
           };
           facturesToCreate.push(newFactureData);
@@ -4030,6 +4031,97 @@ export class ImportsService {
       this.logToFile(`Error wiping database: ${error.message}`);
       throw new BadRequestException('Failed to clear data: ' + error.message);
     }
+  }
+
+  private generateInvoiceLinesForImport(content: any, totalAmount: number): any[] {
+    const lines: any[] = [];
+    const addLine = (desc: string, qte: number, price: number, typeArticle?: string) => {
+      if (price > 0 || desc) {
+        lines.push({
+          description: desc || 'Article',
+          qte: qte || 1,
+          prixUnitaireTTC: price || 0,
+          remise: 0,
+          totalTTC: (qte || 1) * (price || 0),
+          ...(typeArticle ? { typeArticle } : {}),
+        });
+      }
+    };
+
+    if (!content || Object.keys(content).length === 0) {
+      addLine('Import Global - Détail manquant', 1, totalAmount);
+      return lines;
+    }
+
+    // 1. Monture
+    if (content.monture && (content.monture.marque || content.monture.prixMonture > 0)) {
+      const desc = `Monture ${content.monture.marque || ''} ${content.monture.reference || ''}`.trim() || 'Monture';
+      addLine(desc, 1, content.monture.prixMonture || 0, 'MONTURE');
+    }
+
+    // 2. Verres
+    if (content.verres) {
+      const prixVerres = (content.verres.prixOD || 0) + (content.verres.prixOG || 0);
+      if (prixVerres > 0 || content.verres.marque || content.verres.matiere || content.verres.matiereOD) {
+        const type = content.verres.type || 'Unifocal';
+        const marque = content.verres.marque || content.verres.matiereOD || '';
+        const desc = `Verres ${type} ${marque}`.trim();
+        addLine(desc, 1, prixVerres, 'VERRE');
+      }
+    }
+
+    // 3. Lentilles
+    if (content.lentilles) {
+      const prixOD = content.lentilles.od?.prix || 0;
+      const prixOG = content.lentilles.og?.prix || 0;
+      if (
+        prixOD > 0 ||
+        prixOG > 0 ||
+        content.lentilles.od?.marque ||
+        content.lentilles.og?.marque
+      ) {
+        const isPair = (prixOD > 0 && prixOG > 0) || (content.lentilles.od?.marque && content.lentilles.og?.marque) || !content.lentilles.diffLentilles;
+        const qte = isPair ? 2 : 1;
+        const prixUnitaire = isPair ? (prixOD || prixOG || 0) : (prixOD + prixOG);
+        addLine('Lentilles de contact', qte, prixUnitaire, 'LENTILLES');
+      }
+    }
+
+    // 4. Produits
+    if (content.produits && Array.isArray(content.produits)) {
+      content.produits.forEach((p: any) => {
+        addLine(p.designation, p.quantite, p.prixUnitaire, 'ACCESSOIRE');
+      });
+    }
+
+    // 5. Autres Equipements
+    if (content.equipements && Array.isArray(content.equipements)) {
+      content.equipements.forEach((eq: any, idx: number) => {
+        if (eq.monture) {
+          const desc = `Equipement ${idx + 2} - Monture ${eq.monture.marque || ''}`.trim();
+          addLine(desc, 1, eq.monture.prixMonture, 'MONTURE');
+        }
+        if (eq.verres) {
+          const prixV = (eq.verres.prixOD || 0) + (eq.verres.prixOG || 0);
+          const desc = `Equipement ${idx + 2} - Verres ${eq.verres.marque || ''}`.trim();
+          addLine(desc, 1, prixV, 'VERRE');
+        }
+      });
+    }
+
+    // Adjust/Fallback to match totalAmount exactly
+    const currentTotal = lines.reduce((acc, l) => acc + l.totalTTC, 0);
+    const diff = totalAmount - currentTotal;
+
+    if (Math.abs(diff) > 0.01) {
+      if (lines.length === 0) {
+        addLine('Import Global - Détail manquant', 1, totalAmount);
+      } else {
+        addLine('Ajustement Import', 1, diff);
+      }
+    }
+
+    return lines;
   }
 }
 
