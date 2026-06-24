@@ -543,7 +543,7 @@
                                     </mat-form-field>
                                 </div>
                                     <!-- Custom text inputs if selected Autre -->
-                                    <div class="grid grid-cols-4 gap-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marque')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiere')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indice')?.value, lensIndices) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitement')?.value)">
+                                    <div class="grid grid-cols-4 gap-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="isEditMode && (shouldShowCustomInput(ficheForm.get('verres.marque')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiere')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indice')?.value, lensIndices) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitement')?.value))">
                                         <!-- Marque custom -->
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marque')?.value, lensBrands)">
                                             <mat-label>Marque personnalisée</mat-label>
@@ -624,7 +624,7 @@
                                         </mat-form-field>
                                     </div>
                                         <!-- Custom inputs for OD -->
-                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOD')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiereOD')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indiceOD')?.value, lensIndicesOD) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOD')?.value)">
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="isEditMode && (shouldShowCustomInput(ficheForm.get('verres.marqueOD')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiereOD')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indiceOD')?.value, lensIndicesOD) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOD')?.value))">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOD')?.value, lensBrands)">
                                                 <mat-label>Marque personnalisée (OD)</mat-label>
                                                 <input matInput type="text" placeholder="Saisir la marque" 
@@ -699,7 +699,7 @@
                                         </mat-form-field>
                                     </div>
                                         <!-- Custom inputs for OG -->
-                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOG')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiereOG')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indiceOG')?.value, lensIndicesOG) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOG')?.value)">
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="isEditMode && (shouldShowCustomInput(ficheForm.get('verres.marqueOG')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiereOG')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indiceOG')?.value, lensIndicesOG) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOG')?.value))">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOG')?.value, lensBrands)">
                                                 <mat-label>Marque personnalisée (OG)</mat-label>
                                                 <input matInput type="text" placeholder="Saisir la marque" 
@@ -962,7 +962,7 @@
                                         </mat-form-field>
                                     </div>
                                     <!-- Custom text inputs if selected Autre -->
-                                    <div class="grid grid-cols-4 gap-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(equipment.get('verres.marque')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiere')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indice')?.value, lensIndices) || shouldShowCustomTreatmentInput(equipment.get('verres.traitement')?.value)">
+                                    <div class="grid grid-cols-4 gap-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="isEditMode && (shouldShowCustomInput(equipment.get('verres.marque')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiere')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indice')?.value, lensIndices) || shouldShowCustomTreatmentInput(equipment.get('verres.traitement')?.value))">
                                         <!-- Marque custom -->
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.marque')?.value, lensBrands)">
                                             <mat-label>Marque personnalisée</mat-label>
@@ -1042,7 +1042,7 @@
                                             </mat-form-field>
                                         </div>
                                         <!-- Custom inputs for OD (Equipment) -->
-                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOD')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiereOD')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indiceOD')?.value, lensIndicesOD) || shouldShowCustomTreatmentInput(equipment.get('verres.traitementOD')?.value)">
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="isEditMode && (shouldShowCustomInput(equipment.get('verres.marqueOD')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiereOD')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indiceOD')?.value, lensIndicesOD) || shouldShowCustomTreatmentInput(equipment.get('verres.traitementOD')?.value))">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOD')?.value, lensBrands)">
                                                 <mat-label>Marque personnalisée (OD)</mat-label>
                                                 <input matInput type="text" placeholder="Saisir la marque" 
@@ -1116,7 +1116,7 @@
                                             </mat-form-field>
                                         </div>
                                         <!-- Custom inputs for OG (Equipment) -->
-                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOG')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiereOG')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indiceOG')?.value, lensIndicesOG) || shouldShowCustomTreatmentInput(equipment.get('verres.traitementOG')?.value)">
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="isEditMode && (shouldShowCustomInput(equipment.get('verres.marqueOG')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiereOG')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indiceOG')?.value, lensIndicesOG) || shouldShowCustomTreatmentInput(equipment.get('verres.traitementOG')?.value))">
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOG')?.value, lensBrands)">
                                                 <mat-label>Marque personnalisée (OG)</mat-label>
                                                 <input matInput type="text" placeholder="Saisir la marque" 
