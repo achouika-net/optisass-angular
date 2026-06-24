@@ -3425,6 +3425,14 @@ export class MontureFormComponent implements OnInit, OnDestroy {
             return;
         }
         this.loading = true;
+
+        // Auto-create custom glass parameters typed by user so they populate the parameters database
+        try {
+            await this.checkAndCreateCustomGlassParameters();
+        } catch (err) {
+            console.error('Error during auto-creation of custom glass parameters:', err);
+        }
+
         const formValue = this.ficheForm.getRawValue();
 
         // Capture if we are in creation mode before any updates
@@ -5351,5 +5359,241 @@ export class MontureFormComponent implements OnInit, OnDestroy {
         return `BC-${year}${month}-XXX`; // Fallback format
     }
     // Duplicates removed
+
+
+    // Custom Glass Options Helpers
+    getBrandsWithOptions(currentVal: any): string[] {
+        const list = [...(this.lensBrands || [])];
+        if (currentVal && typeof currentVal === 'string' && !list.includes(currentVal)) {
+            list.push(currentVal);
+        }
+        if (!list.includes('Autre')) list.push('Autre');
+        return list;
+    }
+
+    getMaterialsWithOptions(currentVal: any): string[] {
+        const list = [...(this.lensMaterials || [])];
+        if (currentVal && typeof currentVal === 'string' && !list.includes(currentVal)) {
+            list.push(currentVal);
+        }
+        if (!list.includes('Autre')) list.push('Autre');
+        return list;
+    }
+
+    getIndicesWithOptions(currentVal: any, eye: 'OD' | 'OG' | 'unified'): string[] {
+        const sourceList = eye === 'OD' ? this.lensIndicesOD : (eye === 'OG' ? this.lensIndicesOG : this.lensIndices);
+        const list = [...(sourceList || [])];
+        if (currentVal) {
+            const strVal = String(currentVal);
+            if (!list.includes(strVal)) {
+                list.push(strVal);
+            }
+        }
+        if (!list.includes('Autre')) list.push('Autre');
+        return list;
+    }
+
+    getTreatmentsWithOptions(currentVal: any): string[] {
+        const list = [...(this.lensTreatments || [])];
+        if (Array.isArray(currentVal)) {
+            currentVal.forEach(v => {
+                if (v && !list.includes(v)) list.push(v);
+            });
+        } else if (currentVal && typeof currentVal === 'string') {
+            if (!list.includes(currentVal)) list.push(currentVal);
+        }
+        if (!list.includes('Autre')) list.push('Autre');
+        return list;
+    }
+
+    shouldShowCustomInput(currentVal: any, list: string[]): boolean {
+        if (!currentVal) return false;
+        if (currentVal === 'Autre') return true;
+        return !(list || []).includes(currentVal);
+    }
+
+    updateCustomValue(group: AbstractControl, controlName: string, event: Event): void {
+        const inputVal = (event.target as HTMLInputElement).value;
+        const control = group.get(controlName);
+        if (control) {
+            control.setValue(inputVal || 'Autre');
+        }
+    }
+
+    shouldShowCustomTreatmentInput(val: any): boolean {
+        if (!val) return false;
+        if (Array.isArray(val)) {
+            return val.includes('Autre') || val.some(v => !(this.lensTreatments || []).includes(v));
+        }
+        return val === 'Autre' || !(this.lensTreatments || []).includes(val);
+    }
+
+    getCustomTreatmentValue(val: any): string {
+        if (!val) return '';
+        if (Array.isArray(val)) {
+            const custom = val.filter(v => v !== 'Autre' && !(this.lensTreatments || []).includes(v));
+            return custom.join(', ');
+        }
+        return val === 'Autre' ? '' : val;
+    }
+
+    updateCustomTreatmentValue(group: AbstractControl, controlName: string, event: Event): void {
+        const inputVal = (event.target as HTMLInputElement).value;
+        const control = group.get(controlName);
+        if (!control) return;
+
+        const currentVal = control.value || [];
+        const standardVals = Array.isArray(currentVal) 
+            ? currentVal.filter(v => (this.lensTreatments || []).includes(v) && v !== 'Autre')
+            : [];
+
+        const customVals = inputVal.split(',').map(v => v.trim()).filter(v => v !== '');
+        control.setValue([...standardVals, ...customVals]);
+    }
+
+    async checkAndCreateCustomGlassParameters(): Promise<void> {
+        if (!this.glassParametersService) return;
+
+        // Collect all brand names, material names, indices, treatments from form and equipments
+        const brandsToCreate = new Set<string>();
+        const materialsToCreate = new Set<string>();
+        const indicesToCreate: { materialName: string; indexValue: string }[] = [];
+        const treatmentsToCreate = new Set<string>();
+
+        const collectFromGroup = (verresVal: any) => {
+            if (!verresVal) return;
+            const isDiff = verresVal.differentODOG;
+            
+            // Brands
+            if (isDiff) {
+                if (verresVal.marqueOD) brandsToCreate.add(verresVal.marqueOD);
+                if (verresVal.marqueOG) brandsToCreate.add(verresVal.marqueOG);
+            } else {
+                if (verresVal.marque) brandsToCreate.add(verresVal.marque);
+            }
+
+            // Materials & Indices
+            if (isDiff) {
+                if (verresVal.matiereOD) {
+                    materialsToCreate.add(verresVal.matiereOD);
+                    if (verresVal.indiceOD) indicesToCreate.push({ materialName: verresVal.matiereOD, indexValue: String(verresVal.indiceOD) });
+                }
+                if (verresVal.matiereOG) {
+                    materialsToCreate.add(verresVal.matiereOG);
+                    if (verresVal.indiceOG) indicesToCreate.push({ materialName: verresVal.matiereOG, indexValue: String(verresVal.indiceOG) });
+                }
+            } else {
+                if (verresVal.matiere) {
+                    materialsToCreate.add(verresVal.matiere);
+                    if (verresVal.indice) indicesToCreate.push({ materialName: verresVal.matiere, indexValue: String(verresVal.indice) });
+                }
+            }
+
+            // Treatments
+            const addTreatment = (tVal: any) => {
+                if (Array.isArray(tVal)) {
+                    tVal.forEach(t => { if (typeof t === 'string') treatmentsToCreate.add(t); });
+                } else if (typeof tVal === 'string' && tVal) {
+                    treatmentsToCreate.add(tVal);
+                }
+            };
+            if (isDiff) {
+                addTreatment(verresVal.traitementOD);
+                addTreatment(verresVal.traitementOG);
+            } else {
+                addTreatment(verresVal.traitement);
+            }
+        };
+
+        // 1. Collect from main ficheForm
+        const formValue = this.ficheForm.value;
+        collectFromGroup(formValue.verres);
+
+        // 2. Collect from equipments
+        if (formValue.equipements && Array.isArray(formValue.equipements)) {
+            formValue.equipements.forEach((eq: any) => {
+                collectFromGroup(eq.verres);
+            });
+        }
+
+        // Clean up sets: remove values that already exist in our loaded parameters
+        const existingBrands = new Set((this.lensBrands || []).map(b => b.toLowerCase()));
+        const existingMaterials = new Set((this.lensMaterials || []).map(m => m.toLowerCase()));
+        const existingTreatments = new Set((this.lensTreatments || []).map(t => t.toLowerCase()));
+
+        // We also want to map existing material names to their database IDs
+        const materialNameToId: { [key: string]: string } = {};
+        if (this.allGlassParameters?.materials) {
+            this.allGlassParameters.materials.forEach(m => {
+                materialNameToId[m.name.toLowerCase()] = m.id;
+            });
+        }
+
+        const newBrands = Array.from(brandsToCreate).filter(b => b && b.trim() !== '' && !existingBrands.has(b.toLowerCase()) && b.toLowerCase() !== 'autre');
+        const newMaterials = Array.from(materialsToCreate).filter(m => m && m.trim() !== '' && !existingMaterials.has(m.toLowerCase()) && m.toLowerCase() !== 'autre');
+        const newTreatments = Array.from(treatmentsToCreate).filter(t => t && t.trim() !== '' && !existingTreatments.has(t.toLowerCase()) && t.toLowerCase() !== 'autre');
+
+        // First, create new brands in database
+        for (const brandName of newBrands) {
+            try {
+                console.log('Creating custom brand in parameters:', brandName);
+                await firstValueFrom(this.glassParametersService.createBrand(brandName));
+            } catch (err) {
+                console.error('Failed to create custom brand:', brandName, err);
+            }
+        }
+
+        // Create new materials in database
+        for (const matName of newMaterials) {
+            try {
+                console.log('Creating custom material in parameters:', matName);
+                const res = await firstValueFrom(this.glassParametersService.createMaterial(matName));
+                if (res && (res as any).id) {
+                    materialNameToId[matName.toLowerCase()] = (res as any).id;
+                }
+            } catch (err) {
+                console.error('Failed to create custom material:', matName, err);
+            }
+        }
+
+        // Create new treatments in database
+        for (const treatName of newTreatments) {
+            try {
+                console.log('Creating custom treatment in parameters:', treatName);
+                await firstValueFrom(this.glassParametersService.createTreatment(treatName));
+            } catch (err) {
+                console.error('Failed to create custom treatment:', treatName, err);
+            }
+        }
+
+        // Create new indices in database
+        for (const idxPair of indicesToCreate) {
+            if (idxPair.indexValue.toLowerCase() === 'autre') continue;
+            const matKey = idxPair.materialName.toLowerCase();
+            const matId = materialNameToId[matKey];
+            if (!matId) {
+                console.warn('Cannot create index because material ID was not found:', idxPair);
+                continue;
+            }
+
+            const materialData = this.allGlassParameters?.materials.find(m => m.id === matId);
+            const exists = materialData?.indices.some(i => i.label.toLowerCase() === idxPair.indexValue.toLowerCase());
+            if (!exists && idxPair.indexValue && idxPair.indexValue.trim() !== '') {
+                try {
+                    console.log('Creating custom index in parameters:', idxPair.indexValue, 'for material:', idxPair.materialName);
+                    await firstValueFrom(this.glassParametersService.createIndex(matId, idxPair.indexValue, idxPair.indexValue));
+                } catch (err) {
+                    console.error('Failed to create custom index:', idxPair, err);
+                }
+            }
+        }
+
+        // Re-load parameters if we created any new ones
+        if (newBrands.length > 0 || newMaterials.length > 0 || newTreatments.length > 0 || indicesToCreate.length > 0) {
+            console.log('Custom glass parameters added! Reloading glass catalog...');
+            this.loadGlassParameters();
+        }
+    }
+
 }
 

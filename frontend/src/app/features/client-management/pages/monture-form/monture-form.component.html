@@ -508,25 +508,25 @@
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Marque</mat-label>
                                         <mat-select aria-label="Select field" formControlName="marque">
-                                            <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b }}</mat-option>
+                                            <mat-option *ngFor="let b of getBrandsWithOptions(ficheForm.get('verres.marque')?.value)" [value]="b">{{ b }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Matière</mat-label>
                                         <mat-select aria-label="Select field" formControlName="matiere">
-                                            <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m }}</mat-option>
+                                            <mat-option *ngFor="let m of getMaterialsWithOptions(ficheForm.get('verres.matiere')?.value)" [value]="m">{{ m }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Indice</mat-label>
                                         <mat-select aria-label="Select field" formControlName="indice">
-                                            <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i }}</mat-option>
+                                            <mat-option *ngFor="let i of getIndicesWithOptions(ficheForm.get('verres.indice')?.value, 'unified')" [value]="i">{{ i }}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                     <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                         <mat-label>Traitement</mat-label>
                                         <mat-select aria-label="Select field" formControlName="traitement" multiple #traitementSelect>
-                                            <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                            <mat-option *ngFor="let t of getTreatmentsWithOptions(ficheForm.get('verres.traitement')?.value)" [value]="t">{{ t }}</mat-option>
                                             <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                 <button mat-button color="primary" (click)="traitementSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
                                                     Valider la sélection
@@ -542,6 +542,37 @@
                                         <mat-hint>Calcul auto (x2)</mat-hint>
                                     </mat-form-field>
                                 </div>
+                                    <!-- Custom text inputs if selected Autre -->
+                                    <div class="grid grid-cols-4 gap-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marque')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiere')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indice')?.value, lensIndices) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitement')?.value)">
+                                        <!-- Marque custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marque')?.value, lensBrands)">
+                                            <mat-label>Marque personnalisée</mat-label>
+                                            <input matInput type="text" placeholder="Saisir la marque" 
+                                                   [value]="ficheForm.get('verres.marque')?.value === 'Autre' ? '' : ficheForm.get('verres.marque')?.value"
+                                                   (input)="updateCustomValue(ficheForm.get('verres'), 'marque', $event)">
+                                        </mat-form-field>
+                                        <!-- Matiere custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.matiere')?.value, lensMaterials)">
+                                            <mat-label>Matière personnalisée</mat-label>
+                                            <input matInput type="text" placeholder="Saisir la matière" 
+                                                   [value]="ficheForm.get('verres.matiere')?.value === 'Autre' ? '' : ficheForm.get('verres.matiere')?.value"
+                                                   (input)="updateCustomValue(ficheForm.get('verres'), 'matiere', $event)">
+                                        </mat-form-field>
+                                        <!-- Indice custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.indice')?.value, lensIndices)">
+                                            <mat-label>Indice personnalisé</mat-label>
+                                            <input matInput type="text" placeholder="Saisir l'indice" 
+                                                   [value]="ficheForm.get('verres.indice')?.value === 'Autre' ? '' : ficheForm.get('verres.indice')?.value"
+                                                   (input)="updateCustomValue(ficheForm.get('verres'), 'indice', $event)">
+                                        </mat-form-field>
+                                        <!-- Traitement custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomTreatmentInput(ficheForm.get('verres.traitement')?.value)">
+                                            <mat-label>Traitement personnalisé</mat-label>
+                                            <input matInput type="text" placeholder="Saisir le traitement" 
+                                                   [value]="getCustomTreatmentValue(ficheForm.get('verres.traitement')?.value)"
+                                                   (input)="updateCustomTreatmentValue(ficheForm.get('verres'), 'traitement', $event)">
+                                        </mat-form-field>
+                                    </div>
                             </div>
                             <!-- Split Mode -->
                             <div class="verres-split" *ngIf="ficheForm.get('verres.differentODOG')?.value">
@@ -558,28 +589,25 @@
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
                                             <mat-select aria-label="Select field" formControlName="marqueOD">
-                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let b of getBrandsWithOptions(ficheForm.get('verres.marqueOD')?.value)" [value]="b">{{ b }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
                                             <mat-select aria-label="Select field" formControlName="matiereOD">
-                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let m of getMaterialsWithOptions(ficheForm.get('verres.matiereOD')?.value)" [value]="m">{{ m }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select aria-label="Select field" formControlName="indiceOD">
-                                                <mat-option *ngFor="let i of lensIndicesOD" [value]="i">{{ i
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let i of getIndicesWithOptions(ficheForm.get('verres.indiceOD')?.value, 'OD')" [value]="i">{{ i }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
                                             <mat-select aria-label="Select field" formControlName="traitementOD" multiple #traitementODSelect>
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                <mat-option *ngFor="let t of getTreatmentsWithOptions(ficheForm.get('verres.traitementOD')?.value)" [value]="t">{{ t }}</mat-option>
                                                 <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                     <button mat-button color="primary" (click)="traitementODSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
                                                         Valider la sélection
@@ -595,6 +623,33 @@
                                             <span matSuffix>DH</span>
                                         </mat-form-field>
                                     </div>
+                                        <!-- Custom inputs for OD -->
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOD')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiereOD')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indiceOD')?.value, lensIndicesOD) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOD')?.value)">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOD')?.value, lensBrands)">
+                                                <mat-label>Marque personnalisée (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la marque" 
+                                                       [value]="ficheForm.get('verres.marqueOD')?.value === 'Autre' ? '' : ficheForm.get('verres.marqueOD')?.value"
+                                                       (input)="updateCustomValue(ficheForm.get('verres'), 'marqueOD', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.matiereOD')?.value, lensMaterials)">
+                                                <mat-label>Matière personnalisée (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la matière" 
+                                                       [value]="ficheForm.get('verres.matiereOD')?.value === 'Autre' ? '' : ficheForm.get('verres.matiereOD')?.value"
+                                                       (input)="updateCustomValue(ficheForm.get('verres'), 'matiereOD', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.indiceOD')?.value, lensIndicesOD)">
+                                                <mat-label>Indice personnalisé (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir l'indice" 
+                                                       [value]="ficheForm.get('verres.indiceOD')?.value === 'Autre' ? '' : ficheForm.get('verres.indiceOD')?.value"
+                                                       (input)="updateCustomValue(ficheForm.get('verres'), 'indiceOD', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOD')?.value)">
+                                                <mat-label>Traitement personnalisé (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir le traitement" 
+                                                       [value]="getCustomTreatmentValue(ficheForm.get('verres.traitementOD')?.value)"
+                                                       (input)="updateCustomTreatmentValue(ficheForm.get('verres'), 'traitementOD', $event)">
+                                            </mat-form-field>
+                                        </div>
                                 </div>
                                 <div class="verre-og">
                                     <div class="flex items-center justify-between mb-2">
@@ -609,28 +664,25 @@
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
                                             <mat-select aria-label="Select field" formControlName="marqueOG">
-                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let b of getBrandsWithOptions(ficheForm.get('verres.marqueOG')?.value)" [value]="b">{{ b }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
                                             <mat-select aria-label="Select field" formControlName="matiereOG">
-                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let m of getMaterialsWithOptions(ficheForm.get('verres.matiereOG')?.value)" [value]="m">{{ m }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select aria-label="Select field" formControlName="indiceOG">
-                                                <mat-option *ngFor="let i of lensIndicesOG" [value]="i">{{ i
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let i of getIndicesWithOptions(ficheForm.get('verres.indiceOG')?.value, 'OG')" [value]="i">{{ i }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
                                             <mat-select aria-label="Select field" formControlName="traitementOG" multiple #traitementOGSelect>
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                <mat-option *ngFor="let t of getTreatmentsWithOptions(ficheForm.get('verres.traitementOG')?.value)" [value]="t">{{ t }}</mat-option>
                                                 <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                     <button mat-button color="primary" (click)="traitementOGSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
                                                         Valider la sélection
@@ -646,6 +698,33 @@
                                             <span matSuffix>DH</span>
                                         </mat-form-field>
                                     </div>
+                                        <!-- Custom inputs for OG -->
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOG')?.value, lensBrands) || shouldShowCustomInput(ficheForm.get('verres.matiereOG')?.value, lensMaterials) || shouldShowCustomInput(ficheForm.get('verres.indiceOG')?.value, lensIndicesOG) || shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOG')?.value)">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.marqueOG')?.value, lensBrands)">
+                                                <mat-label>Marque personnalisée (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la marque" 
+                                                       [value]="ficheForm.get('verres.marqueOG')?.value === 'Autre' ? '' : ficheForm.get('verres.marqueOG')?.value"
+                                                       (input)="updateCustomValue(ficheForm.get('verres'), 'marqueOG', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.matiereOG')?.value, lensMaterials)">
+                                                <mat-label>Matière personnalisée (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la matière" 
+                                                       [value]="ficheForm.get('verres.matiereOG')?.value === 'Autre' ? '' : ficheForm.get('verres.matiereOG')?.value"
+                                                       (input)="updateCustomValue(ficheForm.get('verres'), 'matiereOG', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(ficheForm.get('verres.indiceOG')?.value, lensIndicesOG)">
+                                                <mat-label>Indice personnalisé (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir l'indice" 
+                                                       [value]="ficheForm.get('verres.indiceOG')?.value === 'Autre' ? '' : ficheForm.get('verres.indiceOG')?.value"
+                                                       (input)="updateCustomValue(ficheForm.get('verres'), 'indiceOG', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomTreatmentInput(ficheForm.get('verres.traitementOG')?.value)">
+                                                <mat-label>Traitement personnalisé (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir le traitement" 
+                                                       [value]="getCustomTreatmentValue(ficheForm.get('verres.traitementOG')?.value)"
+                                                       (input)="updateCustomTreatmentValue(ficheForm.get('verres'), 'traitementOG', $event)">
+                                            </mat-form-field>
+                                        </div>
                                 </div>
                             </div>
                         </div>
@@ -848,28 +927,25 @@
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Marque</mat-label>
                                             <mat-select aria-label="Select field" formControlName="marque">
-                                                <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let b of getBrandsWithOptions(equipment.get('verres.marque')?.value)" [value]="b">{{ b }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Matière</mat-label>
                                             <mat-select aria-label="Select field" formControlName="matiere">
-                                                <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let m of getMaterialsWithOptions(equipment.get('verres.matiere')?.value)" [value]="m">{{ m }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Indice</mat-label>
                                             <mat-select aria-label="Select field" formControlName="indice">
-                                                <mat-option *ngFor="let i of lensIndices" [value]="i">{{ i
-                                                    }}</mat-option>
+                                                <mat-option *ngFor="let i of getIndicesWithOptions(equipment.get('verres.indice')?.value, 'unified')" [value]="i">{{ i }}</mat-option>
                                             </mat-select>
                                         </mat-form-field>
                                         <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                             <mat-label>Traitement</mat-label>
                                             <mat-select aria-label="Select field" formControlName="traitement" multiple #eqTraitementSelect>
-                                                <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                <mat-option *ngFor="let t of getTreatmentsWithOptions(equipment.get('verres.traitement')?.value)" [value]="t">{{ t }}</mat-option>
                                                 <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                     <button mat-button color="primary" (click)="eqTraitementSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
                                                         Valider la sélection
@@ -883,6 +959,37 @@
                                                 (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
                                             <span matSuffix>DH</span>
                                             <mat-hint>Calcul auto (x2)</mat-hint>
+                                        </mat-form-field>
+                                    </div>
+                                    <!-- Custom text inputs if selected Autre -->
+                                    <div class="grid grid-cols-4 gap-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(equipment.get('verres.marque')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiere')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indice')?.value, lensIndices) || shouldShowCustomTreatmentInput(equipment.get('verres.traitement')?.value)">
+                                        <!-- Marque custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.marque')?.value, lensBrands)">
+                                            <mat-label>Marque personnalisée</mat-label>
+                                            <input matInput type="text" placeholder="Saisir la marque" 
+                                                   [value]="equipment.get('verres.marque')?.value === 'Autre' ? '' : equipment.get('verres.marque')?.value"
+                                                   (input)="updateCustomValue(equipment.get('verres'), 'marque', $event)">
+                                        </mat-form-field>
+                                        <!-- Matiere custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.matiere')?.value, lensMaterials)">
+                                            <mat-label>Matière personnalisée</mat-label>
+                                            <input matInput type="text" placeholder="Saisir la matière" 
+                                                   [value]="equipment.get('verres.matiere')?.value === 'Autre' ? '' : equipment.get('verres.matiere')?.value"
+                                                   (input)="updateCustomValue(equipment.get('verres'), 'matiere', $event)">
+                                        </mat-form-field>
+                                        <!-- Indice custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.indice')?.value, lensIndices)">
+                                            <mat-label>Indice personnalisé</mat-label>
+                                            <input matInput type="text" placeholder="Saisir l'indice" 
+                                                   [value]="equipment.get('verres.indice')?.value === 'Autre' ? '' : equipment.get('verres.indice')?.value"
+                                                   (input)="updateCustomValue(equipment.get('verres'), 'indice', $event)">
+                                        </mat-form-field>
+                                        <!-- Traitement custom -->
+                                        <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomTreatmentInput(equipment.get('verres.traitement')?.value)">
+                                            <mat-label>Traitement personnalisé</mat-label>
+                                            <input matInput type="text" placeholder="Saisir le traitement" 
+                                                   [value]="getCustomTreatmentValue(equipment.get('verres.traitement')?.value)"
+                                                   (input)="updateCustomTreatmentValue(equipment.get('verres'), 'traitement', $event)">
                                         </mat-form-field>
                                     </div>
                                 </div>
@@ -901,28 +1008,25 @@
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="marqueOD">
-                                                    <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                        }}</mat-option>
+                                                    <mat-option *ngFor="let b of getBrandsWithOptions(equipment.get('verres.marqueOD')?.value)" [value]="b">{{ b }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Matière</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="matiereOD">
-                                                    <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                        }}</mat-option>
+                                                    <mat-option *ngFor="let m of getMaterialsWithOptions(equipment.get('verres.matiereOD')?.value)" [value]="m">{{ m }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="indiceOD">
-                                                    <mat-option *ngFor="let i of lensIndicesOD" [value]="i">{{ i
-                                                        }}</mat-option>
+                                                    <mat-option *ngFor="let i of getIndicesWithOptions(equipment.get('verres.indiceOD')?.value, 'OD')" [value]="i">{{ i }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="traitementOD" multiple #eqTraitementODSelect>
-                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                    <mat-option *ngFor="let t of getTreatmentsWithOptions(equipment.get('verres.traitementOD')?.value)" [value]="t">{{ t }}</mat-option>
                                                     <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                         <button mat-button color="primary" (click)="eqTraitementODSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
                                                             Valider la sélection
@@ -935,6 +1039,33 @@
                                                 <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOD"
                                                     (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOD'), $event)">
                                                 <span matSuffix>DH</span>
+                                            </mat-form-field>
+                                        </div>
+                                        <!-- Custom inputs for OD (Equipment) -->
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOD')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiereOD')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indiceOD')?.value, lensIndicesOD) || shouldShowCustomTreatmentInput(equipment.get('verres.traitementOD')?.value)">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOD')?.value, lensBrands)">
+                                                <mat-label>Marque personnalisée (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la marque" 
+                                                       [value]="equipment.get('verres.marqueOD')?.value === 'Autre' ? '' : equipment.get('verres.marqueOD')?.value"
+                                                       (input)="updateCustomValue(equipment.get('verres'), 'marqueOD', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.matiereOD')?.value, lensMaterials)">
+                                                <mat-label>Matière personnalisée (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la matière" 
+                                                       [value]="equipment.get('verres.matiereOD')?.value === 'Autre' ? '' : equipment.get('verres.matiereOD')?.value"
+                                                       (input)="updateCustomValue(equipment.get('verres'), 'matiereOD', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.indiceOD')?.value, lensIndicesOD)">
+                                                <mat-label>Indice personnalisé (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir l'indice" 
+                                                       [value]="equipment.get('verres.indiceOD')?.value === 'Autre' ? '' : equipment.get('verres.indiceOD')?.value"
+                                                       (input)="updateCustomValue(equipment.get('verres'), 'indiceOD', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomTreatmentInput(equipment.get('verres.traitementOD')?.value)">
+                                                <mat-label>Traitement personnalisé (OD)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir le traitement" 
+                                                       [value]="getCustomTreatmentValue(equipment.get('verres.traitementOD')?.value)"
+                                                       (input)="updateCustomTreatmentValue(equipment.get('verres'), 'traitementOD', $event)">
                                             </mat-form-field>
                                         </div>
                                     </div>
@@ -951,28 +1082,25 @@
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Marque</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="marqueOG">
-                                                    <mat-option *ngFor="let b of lensBrands" [value]="b">{{ b
-                                                        }}</mat-option>
+                                                    <mat-option *ngFor="let b of getBrandsWithOptions(equipment.get('verres.marqueOG')?.value)" [value]="b">{{ b }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Matière</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="matiereOG">
-                                                    <mat-option *ngFor="let m of lensMaterials" [value]="m">{{ m
-                                                        }}</mat-option>
+                                                    <mat-option *ngFor="let m of getMaterialsWithOptions(equipment.get('verres.matiereOG')?.value)" [value]="m">{{ m }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Indice</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="indiceOG">
-                                                    <mat-option *ngFor="let i of lensIndicesOG" [value]="i">{{ i
-                                                        }}</mat-option>
+                                                    <mat-option *ngFor="let i of getIndicesWithOptions(equipment.get('verres.indiceOG')?.value, 'OG')" [value]="i">{{ i }}</mat-option>
                                                 </mat-select>
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="w-full" floatLabel="always">
                                                 <mat-label>Traitement</mat-label>
                                                 <mat-select aria-label="Select field" formControlName="traitementOG" multiple #eqTraitementOGSelect>
-                                                    <mat-option *ngFor="let t of lensTreatments" [value]="t">{{ t }}</mat-option>
+                                                    <mat-option *ngFor="let t of getTreatmentsWithOptions(equipment.get('verres.traitementOG')?.value)" [value]="t">{{ t }}</mat-option>
                                                     <div class="px-3 pb-2 pt-1 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
                                                         <button mat-button color="primary" (click)="eqTraitementOGSelect.close()" type="button" class="w-full text-xs py-1 h-auto">
                                                             Valider la sélection
@@ -985,6 +1113,33 @@
                                                 <input aria-label="Input" title="Input" matInput type="text" formControlName="prixOG"
                                                     (blur)="formatPrice(getEquipmentGroup(i).get('verres.prixOG'), $event)">
                                                 <span matSuffix>DH</span>
+                                            </mat-form-field>
+                                        </div>
+                                        <!-- Custom inputs for OG (Equipment) -->
+                                        <div class="grid grid-cols-1 gap-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOG')?.value, lensBrands) || shouldShowCustomInput(equipment.get('verres.matiereOG')?.value, lensMaterials) || shouldShowCustomInput(equipment.get('verres.indiceOG')?.value, lensIndicesOG) || shouldShowCustomTreatmentInput(equipment.get('verres.traitementOG')?.value)">
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.marqueOG')?.value, lensBrands)">
+                                                <mat-label>Marque personnalisée (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la marque" 
+                                                       [value]="equipment.get('verres.marqueOG')?.value === 'Autre' ? '' : equipment.get('verres.marqueOG')?.value"
+                                                       (input)="updateCustomValue(equipment.get('verres'), 'marqueOG', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.matiereOG')?.value, lensMaterials)">
+                                                <mat-label>Matière personnalisée (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir la matière" 
+                                                       [value]="equipment.get('verres.matiereOG')?.value === 'Autre' ? '' : equipment.get('verres.matiereOG')?.value"
+                                                       (input)="updateCustomValue(equipment.get('verres'), 'matiereOG', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomInput(equipment.get('verres.indiceOG')?.value, lensIndicesOG)">
+                                                <mat-label>Indice personnalisé (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir l'indice" 
+                                                       [value]="equipment.get('verres.indiceOG')?.value === 'Autre' ? '' : equipment.get('verres.indiceOG')?.value"
+                                                       (input)="updateCustomValue(equipment.get('verres'), 'indiceOG', $event)">
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-full" floatLabel="always" *ngIf="shouldShowCustomTreatmentInput(equipment.get('verres.traitementOG')?.value)">
+                                                <mat-label>Traitement personnalisé (OG)</mat-label>
+                                                <input matInput type="text" placeholder="Saisir le traitement" 
+                                                       [value]="getCustomTreatmentValue(equipment.get('verres.traitementOG')?.value)"
+                                                       (input)="updateCustomTreatmentValue(equipment.get('verres'), 'traitementOG', $event)">
                                             </mat-form-field>
                                         </div>
                                     </div>
@@ -1810,3 +1965,4 @@
 
 
 </div>
+

@@ -31,4 +31,19 @@ export class GlassParametersService {
   }
 
   // Individual methods can be added here if needed for CRUD from components
+  createBrand(name: string, margeDefaut?: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/brands`, { name, margeDefaut });
+  }
+
+  createMaterial(name: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/materials`, { name });
+  }
+
+  createIndex(materialId: string, value: string, label?: string, price?: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/indices`, { materialId, value, label: label || value, price: price || 0 });
+  }
+
+  createTreatment(name: string, price?: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/treatments`, { name, price: price || 0 });
+  }
 }
