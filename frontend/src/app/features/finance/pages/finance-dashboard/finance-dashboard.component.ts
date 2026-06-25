@@ -748,7 +748,8 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
                     // Handle both name variants just in case
                     const mode = (i.modePaiement || i.methodePaiement || '').toUpperCase().trim();
                     const isPEC = mode === 'PRISE_EN_CHARGE' || mode === 'PRISE EN CHARGE' || mode === 'PEC';
-                    const isPendingCheque = ['CHEQUE', 'LCN'].includes(mode) && statut === 'EN_ATTENTE';
+                    const isChequeOrLCNMode = ['CHEQUE', 'CHÈQUE', 'CHÊQUE', 'CHÉQUE', 'CH^QUE', 'CHQUE', 'LCN', 'EFFET', 'EFFET LCN', 'TRAITE'].includes(mode);
+                    const isPendingCheque = isChequeOrLCNMode && ['EN_ATTENTE', 'REMIS_EN_BANQUE', 'PORTEFEUILLE', 'DEPOSE', 'REMIS', 'EN_COURS'].includes(statut);
                     
                     // Show if cashed OR if it's a pending PEC or Cheque (relevant for treasury visibility)
                     return isCashed || isPEC || isPendingCheque;
@@ -910,6 +911,12 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
                 this.snackBar.open('Erreur lors de la validation', 'OK');
             }
         });
+    }
+
+    isChequeOrLCN(mode: string): boolean {
+        if (!mode) return false;
+        const clean = mode.toUpperCase().trim();
+        return ['CHEQUE', 'CHÈQUE', 'CHÊQUE', 'CHÉQUE', 'CH^QUE', 'CHQUE', 'LCN', 'EFFET', 'EFFET LCN', 'TRAITE'].includes(clean);
     }
 }
 

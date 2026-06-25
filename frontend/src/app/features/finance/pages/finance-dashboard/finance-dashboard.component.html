@@ -564,7 +564,7 @@
                                         <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded border" 
                                               [ngClass]="{
                                                 'bg-emerald-50 text-emerald-600 border-emerald-100': ['ESPECES', 'LIQUIDE', 'CASH'].includes(item.methodePaiement?.toUpperCase()),
-                                                'bg-indigo-50 text-indigo-600 border-indigo-100': ['CHEQUE', 'LCN'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-indigo-50 text-indigo-600 border-indigo-100': isChequeOrLCN(item.methodePaiement),
                                                 'bg-amber-50 text-amber-600 border-amber-100': ['VIREMENT', 'CARTE', 'CB'].includes(item.methodePaiement?.toUpperCase()),
                                                 'bg-slate-50 text-slate-600 border-slate-100': !item.methodePaiement
                                               }">
@@ -664,7 +664,7 @@
                                         <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded border" 
                                               [ngClass]="{
                                                 'bg-emerald-50 text-emerald-600 border-emerald-100': ['ESPECES', 'LIQUIDE', 'CASH'].includes(item.methodePaiement?.toUpperCase()),
-                                                'bg-indigo-50 text-indigo-600 border-indigo-100': ['CHEQUE', 'LCN'].includes(item.methodePaiement?.toUpperCase()),
+                                                'bg-indigo-50 text-indigo-600 border-indigo-100': isChequeOrLCN(item.methodePaiement),
                                                 'bg-amber-50 text-amber-600 border-amber-100': ['VIREMENT', 'CARTE', 'CB'].includes(item.methodePaiement?.toUpperCase()),
                                                 'bg-slate-50 text-slate-600 border-slate-100': !item.methodePaiement
                                               }">
