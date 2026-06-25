@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 const XLSX = require('xlsx');
@@ -572,6 +572,27 @@ export class ImportsService {
     }
     
     // Otherwise, if between 01/05/2026 and today, it is remis en banque
+    return 'REMIS_EN_BANQUE';
+  }
+
+  private determinePaiementStatus(dateEcheanceVal: Date | null, datePaiementVal: Date | null, rawMode: any): string {
+    const paymentMode = this.normalizePaymentType(rawMode) || 'ESPECES';
+    
+    if (paymentMode === 'VIREMENT' || paymentMode === 'ESPECES' || paymentMode === 'CARTE' || paymentMode === 'AVOIR' || paymentMode === 'GESTE_COMMERCIAL') {
+      return 'ENCAISSE';
+    }
+    
+    const d = dateEcheanceVal || datePaiementVal || new Date();
+    
+    if (d > new Date()) {
+      return 'EN_ATTENTE';
+    }
+    
+    const thresholdDate = new Date('2026-04-30T23:59:59.999Z');
+    if (d <= thresholdDate) {
+      return 'ENCAISSE';
+    }
+    
     return 'REMIS_EN_BANQUE';
   }
 
@@ -3683,7 +3704,7 @@ export class ImportsService {
           notes,
           banque,
           dateEncaissement: dateEcheanceVal,
-          statut: ['CHEQUE', 'CHÈQUE', 'LCN'].includes(modeSource) ? 'EN_ATTENTE' : 'ENCAISSE',
+          statut: this.determinePaiementStatus(dateEcheanceVal, datePaiement, modeSource),
         });
 
         // Accumulate payment totals per invoice for balance update
