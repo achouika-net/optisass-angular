@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, NgZone, effect, TemplateRef } from '@angular/core';
+﻿import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, NgZone, effect, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -106,7 +106,9 @@ Chart.register(...registerables);
         height: 18px !important;
     }
     .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px; }
+    .charts-grid-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
     @media (max-width: 1200px) { .charts-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 1200px) { .charts-grid-equal { grid-template-columns: 1fr; } }
     .chart-card { border-radius: 20px; border: none; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); overflow: hidden; height: 100%; }
     .chart-container { height: 350px; position: relative; }
     
@@ -264,11 +266,16 @@ Chart.register(...registerables);
 })
 export class FinanceDashboardComponent implements OnInit, AfterViewInit {
     @ViewChild('healthChart') healthChartRef!: ElementRef;
+    @ViewChild('incomingChart') incomingChartRef!: ElementRef;
     @ViewChild('soldeDetailDialog') soldeDetailDialog!: TemplateRef<any>;
 
     private healthChart: Chart | null = null;
+    private incomingChart: Chart | null = null;
 
     summary: any = null;
+    currentMonthIncomingCheque = 0;
+    currentMonthIncomingLCN = 0;
+    currentMonthIncomingTotal = 0;
     loading = false;
     isLoadingDialogData = false;
     incomingItems: any[] = [];
@@ -427,18 +434,26 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
 
         forkJoin({
             monthly: this.financeService.getTreasurySummary(yearToUse, monthToUse, centreId, dates.start, dates.end),
-            yearly: this.financeService.getYearlyProjection(yearToUse, centreId, Date.now())
+            yearly: this.financeService.getYearlyProjection(yearToUse, centreId, Date.now()),
+            incomingYearly: this.financeService.getYearlyIncomingProjection(yearToUse, centreId, Date.now())
         }).subscribe({
-            next: ({ monthly, yearly }) => {
+            next: ({ monthly, yearly, incomingYearly }) => {
                 this.zone.run(() => {
                     this.summary = monthly;
                     this.monthlyThreshold = monthly.monthlyThreshold || 50000;
+                    
+                    const displayMonth = monthToUse > 0 ? monthToUse : (this.selectedMonth > 0 ? this.selectedMonth : new Date().getMonth() + 1);
+                    const currentMonthData = incomingYearly.find(d => d.month === displayMonth);
+                    this.currentMonthIncomingCheque = currentMonthData?.totalCheque || 0;
+                    this.currentMonthIncomingLCN = currentMonthData?.totalLCN || 0;
+                    this.currentMonthIncomingTotal = currentMonthData?.total || 0;
                     this.loading = false;
                     this.cd.detectChanges();
 
                     // Update charts after DOM is rendered
                     requestAnimationFrame(() => {
                         this.updateHealthChart(yearly);
+                        this.updateIncomingChart(incomingYearly);
                     });
                 });
             },
@@ -571,6 +586,110 @@ export class FinanceDashboardComponent implements OnInit, AfterViewInit {
         });
     }
 
+    updateIncomingChart(yearlyData: any[]) {
+        if (this.incomingChart) {
+            this.incomingChart.destroy();
+            this.incomingChart = null;
+        }
+
+        if (!this.incomingChartRef?.nativeElement) return;
+
+        const labels = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+        const chequeTotals = new Array(12).fill(0);
+        const lcnTotals = new Array(12).fill(0);
+
+        if (Array.isArray(yearlyData)) {
+            yearlyData.forEach(item => {
+                if (item.month >= 1 && item.month <= 12) {
+                    chequeTotals[item.month - 1] = item.totalCheque || 0;
+                    lcnTotals[item.month - 1] = item.totalLCN || 0;
+                }
+            });
+        }
+
+        const ctx = this.incomingChartRef.nativeElement.getContext('2d');
+        this.incomingChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Chèques',
+                        data: chequeTotals,
+                        backgroundColor: 'rgba(99, 102, 241, 0.75)',   // indigo-500
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        barPercentage: 0.55,
+                        order: 1
+                    },
+                    {
+                        type: 'bar',
+                        label: 'LCN / Effets',
+                        data: lcnTotals,
+                        backgroundColor: 'rgba(168, 85, 247, 0.75)',   // purple-500
+                        borderColor: 'rgba(168, 85, 247, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        barPercentage: 0.55,
+                        order: 2
+                    },
+                    {
+                        type: 'line',
+                        label: 'Total Chèque+LCN',
+                        data: chequeTotals.map((c, i) => c + lcnTotals[i]),
+                        borderColor: '#10b981',   // emerald-500
+                        borderWidth: 2,
+                        pointBackgroundColor: '#10b981',
+                        pointRadius: 4,
+                        fill: false,
+                        tension: 0.3,
+                        order: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: { usePointStyle: true, boxWidth: 8, padding: 16 }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: (context) => {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MAD' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: false, grid: { display: false } },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f3f4f6' },
+                        ticks: {
+                            callback: (value) => {
+                                if (typeof value === 'number' && value >= 1000) return (value / 1000) + 'k';
+                                return value;
+                            }
+                        }
+                    }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            }
+        });
+    }
     goToPayments(tab: 'OUTGOING' | 'INCOMING', dateType: 'EMISSION' | 'ECHEANCE' = 'ECHEANCE', statut?: string, modePaiement?: string) {
         const dates = this.getDateRange();
         this.router.navigate(['/p/finance/payments'], {

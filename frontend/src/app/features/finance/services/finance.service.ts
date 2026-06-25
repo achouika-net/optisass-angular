@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+﻿import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_URL } from '../../../config/api.config';
@@ -182,6 +182,13 @@ export class FinanceService {
         return this.http.get<any>(`${this.apiUrl}/treasury/summary`, { params });
     }
 
+
+    getYearlyIncomingProjection(year: number, centreId?: string, _t?: number): Observable<any[]> {
+        let params = new HttpParams().set('year', year.toString());
+        if (centreId) params = params.set('centreId', centreId);
+        if (_t) params = params.set('_t', _t.toString());
+        return this.http.get<any[]>(`${this.apiUrl}/treasury/incoming-projection`, { params });
+    }
     getYearlyProjection(year: number, centreId?: string, _t?: number): Observable<any[]> {
         let params = new HttpParams().set('year', year.toString());
         if (centreId) params = params.set('centreId', centreId);

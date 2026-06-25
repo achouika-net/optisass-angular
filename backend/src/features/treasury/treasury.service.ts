@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 interface AggResult {
@@ -807,6 +807,74 @@ export class TreasuryService {
     return results.map((total, i) => ({ month: i + 1, totalExpenses: total }));
   }
 
+
+  async getYearlyIncomingProjection(year: number, centreId?: string) {
+    const normalizedCentreId =
+      centreId && centreId !== '' ? centreId : undefined;
+
+    const chequeModes = [
+      'CHEQUE', 'Ch\u00e8que', 'CH\u00c8QUE', 'CH\u00caQUE', 'CH\u00c9QUE', 'CH^QUE', 'CHQUE', 'Cheque',
+    ];
+    const lcnModes = ['LCN', 'EFFET', 'EFFET LCN', 'TRAITE', 'Effet', 'Traite'];
+    const allModes = [...chequeModes, ...lcnModes];
+
+    const months = Array.from({ length: 12 }, (_, i) => i + 1);
+
+    const results = await Promise.all(
+      months.map(async (month) => {
+        const yearStr = year.toString();
+        const monthStr = month.toString().padStart(2, '0');
+        const lastDay = new Date(year, month, 0).getDate();
+        const startDate = new Date(`${yearStr}-${monthStr}-01T00:00:00.000Z`);
+        const endDate = new Date(
+          `${yearStr}-${monthStr}-${String(lastDay).padStart(2, '0')}T23:59:59.999Z`,
+        );
+
+        const params: any[] = [startDate, endDate];
+        if (normalizedCentreId) params.push(normalizedCentreId);
+        const centreFilter = normalizedCentreId ? `AND f."centreId" = $${params.length}` : '';
+
+        const baseIdx = params.length;
+        allModes.forEach((m) => params.push(m));
+        const modeInClause = allModes.map((_, i) => `$${baseIdx + i + 1}`).join(', ');
+
+        const chequeIdx = params.length;
+        chequeModes.forEach((m) => params.push(m));
+        const chequeModeInClause = chequeModes.map((_, i) => `$${chequeIdx + i + 1}`).join(', ');
+
+        const lcnIdx = params.length;
+        lcnModes.forEach((m) => params.push(m));
+        const lcnModeInClause = lcnModes.map((_, i) => `$${lcnIdx + i + 1}`).join(', ');
+
+        const sql = `
+          SELECT
+            COALESCE(SUM(p.montant), 0)::float AS total,
+            COALESCE(SUM(CASE WHEN p.mode IN (${chequeModeInClause}) THEN p.montant ELSE 0 END), 0)::float AS "totalCheque",
+            COALESCE(SUM(CASE WHEN p.mode IN (${lcnModeInClause}) THEN p.montant ELSE 0 END), 0)::float AS "totalLCN"
+          FROM "Paiement" p
+          LEFT JOIN "Facture" f ON p."factureId" = f.id
+          WHERE p.mode IN (${modeInClause})
+            AND COALESCE(CASE WHEN p."dateEncaissement" > '2100-01-01'::timestamp THEN p.date ELSE p."dateEncaissement" END, p.date) >= $1
+            AND COALESCE(CASE WHEN p."dateEncaissement" > '2100-01-01'::timestamp THEN p.date ELSE p."dateEncaissement" END, p.date) <= $2
+            ${centreFilter}
+        `;
+
+        const rows = await this.prisma.$queryRawUnsafe<
+          { total: number; totalCheque: number; totalLCN: number }[]
+        >(sql, ...params);
+
+        const row = rows[0] || { total: 0, totalCheque: 0, totalLCN: 0 };
+        return {
+          month,
+          total: Number(row.total || 0),
+          totalCheque: Number(row.totalCheque || 0),
+          totalLCN: Number(row.totalLCN || 0),
+        };
+      }),
+    );
+
+    return results;
+  }
   async updateEcheanceStatus(id: string, statut: string) {
     const updateData: any = { statut };
     if (statut === 'ENCAISSE' || statut === 'PAYE')

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
+﻿import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { TreasuryService } from './treasury.service';
 
 @Controller('treasury')
@@ -124,6 +124,17 @@ export class TreasuryController {
     );
   }
 
+
+  @Get('incoming-projection')
+  getYearlyIncomingProjection(
+    @Query('year') year: string,
+    @Query('centreId') centreId?: string,
+  ) {
+    return this.treasuryService.getYearlyIncomingProjection(
+      parseInt(year) || new Date().getFullYear(),
+      centreId,
+    );
+  }
   @Get('config')
   getConfig() {
     return this.treasuryService.getConfig();
